@@ -1,4 +1,4 @@
-﻿using FoodManagement.Contracts.Foods;
+﻿using FoodManagement.Contracts;
 using FoodManagement.Models;
 using FoodManagement.Presenters.Foods;
 using Microsoft.AspNetCore.Mvc;
@@ -6,10 +6,10 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace FoodManagement.Pages.Foods
 {
-    public class FoodPageModel(IFoodService service) : PageModel, IFoodListView
+    public class FoodPageModel(IService<FoodDto> service) : PageModel, IListView<FoodDto>
     {
-        private readonly IFoodService _service = service;
-        private IFoodPresenter? _presenter;
+        private readonly IService<FoodDto> _service = service;
+        private IPresenter<FoodDto>? _presenter;
 
         private IEnumerable<FoodDto> _allFoods = new List<FoodDto>();
         public IEnumerable<FoodDto> Foods { get; private set; } = new List<FoodDto>();
@@ -20,7 +20,7 @@ namespace FoodManagement.Pages.Foods
         public int pages { get; set; } = 1;
 
         [BindProperty(SupportsGet = true)]
-        public int PageSize { get; set; } = 5;
+        public int PageSize { get; set; } = 10;
 
         [BindProperty(SupportsGet = true)]
         public string? SortColumn { get; set; }
@@ -39,7 +39,7 @@ namespace FoodManagement.Pages.Foods
         public async Task OnGetAsync()
         {
             _presenter = new FoodPresenter(_service, this);
-            await _presenter.LoadFoodsAsync();
+            await _presenter.LoadItemsAsync();
 
             var foods = _allFoods;
             // Lọc theo SearchTerm nếu có
@@ -107,12 +107,12 @@ namespace FoodManagement.Pages.Foods
         // ===============================
         // Implementation of IFoodListView
         // ===============================
-        public void ShowFoods(IEnumerable<FoodDto> foods)
+        public void ShowItems(IEnumerable<FoodDto> foods)
         {
             _allFoods = foods;
         }
 
-        public void ShowFoodDetail(FoodDto food)
+        public void ShowItemDetail(FoodDto food)
         {
             ViewData["FoodDetail"] = food;
         }

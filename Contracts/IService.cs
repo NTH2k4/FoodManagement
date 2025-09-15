@@ -1,13 +1,13 @@
 ﻿using FoodManagement.Models;
 
-namespace FoodManagement.Contracts.Foods
+namespace FoodManagement.Contracts
 {
-    public interface IFoodService
+    public interface IService<T>
     {
         Task<IEnumerable<FoodDto>> GetAllAsync();
         Task<FoodDto?> GetByIdAsync(string id);
-        Task CreateAsync(FoodDto dto);
-        Task UpdateAsync(FoodDto dto);
+        Task CreateAsync(T dto);
+        Task UpdateAsync(T dto);
         Task DeleteAsync(string id);
     }
 }

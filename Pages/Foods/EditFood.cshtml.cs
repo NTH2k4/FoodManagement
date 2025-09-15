@@ -1,4 +1,4 @@
-﻿using FoodManagement.Contracts.Foods;
+﻿using FoodManagement.Contracts;
 using FoodManagement.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -7,9 +7,9 @@ namespace FoodManagement.Pages.Foods
 {
     public class EditModel : PageModel
     {
-        private readonly IFoodService _service;
+        private readonly IService<FoodDto> _service;
 
-        public EditModel(IFoodService service)
+        public EditModel(IService<FoodDto> service)
         {
             _service = service;
         }

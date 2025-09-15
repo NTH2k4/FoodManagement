@@ -1,4 +1,5 @@
-using FoodManagement.Contracts.Foods;
+using FoodManagement.Contracts;
+using FoodManagement.Models;
 using FoodManagement.Repositories;
 using FoodManagement.Services;
 
@@ -7,8 +8,8 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddRazorPages();
 
-builder.Services.AddScoped<IFoodRepository, FirebaseFoodRepository>();
-builder.Services.AddScoped<IFoodService, FoodService>();
+builder.Services.AddScoped<IRepository<FoodDto>, FirebaseFoodRepository>();
+builder.Services.AddScoped<IService<FoodDto>, FoodService>();
 
 
 var app = builder.Build();

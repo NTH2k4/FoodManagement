@@ -1,12 +1,12 @@
-﻿using FoodManagement.Contracts.Foods;
+﻿using FoodManagement.Contracts;
 using FoodManagement.Models;
 
 namespace FoodManagement.Services
 {
-    public class FoodService : IFoodService
+    public class FoodService : IService<FoodDto>
     {
-        private readonly IFoodRepository _repo;
-        public FoodService(IFoodRepository repo) => _repo = repo;
+        private readonly IRepository<FoodDto> _repo;
+        public FoodService(IRepository<FoodDto> repo) => _repo = repo;
 
         public Task<IEnumerable<FoodDto>> GetAllAsync() => _repo.GetAllAsync();
         public Task<FoodDto?> GetByIdAsync(string id) => _repo.GetByIdAsync(id);

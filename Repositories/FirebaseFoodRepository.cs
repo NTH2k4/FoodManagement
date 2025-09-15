@@ -1,11 +1,11 @@
-﻿using FoodManagement.Contracts.Foods;
+﻿using FoodManagement.Contracts;
 using FoodManagement.Models;
 using System.Net.Http.Json;
 using System.Text.Json;
 
 namespace FoodManagement.Repositories
 {
-    public class FirebaseFoodRepository : IFoodRepository
+    public class FirebaseFoodRepository : IRepository<FoodDto>
     {
         private readonly HttpClient _httpClient;
         private readonly string _databaseUrl;

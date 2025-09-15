@@ -1,4 +1,4 @@
-using FoodManagement.Contracts.Foods;
+using FoodManagement.Contracts;
 using FoodManagement.Models;
 using FoodManagement.Repositories;
 using Microsoft.AspNetCore.Mvc;
@@ -8,9 +8,9 @@ namespace FoodManagement.Pages.Foods
 {
     public class InfoFoodModel : PageModel
     {
-        private readonly IFoodRepository _foodRepository;
+        private readonly IRepository<FoodDto> _foodRepository;
 
-        public InfoFoodModel(IFoodRepository foodRepository)
+        public InfoFoodModel(IRepository<FoodDto> foodRepository)
         {
             _foodRepository = foodRepository;
         }

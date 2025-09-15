@@ -1,25 +1,25 @@
-﻿using FoodManagement.Contracts.Foods;
+﻿using FoodManagement.Contracts;
 using FoodManagement.Models;
 
 namespace FoodManagement.Presenters.Foods
 {
-    public class FoodPresenter : IFoodPresenter
+    public class FoodPresenter : IPresenter<FoodDto>
     {
-        private readonly IFoodService _service;
-        private readonly IFoodListView _view;
+        private readonly IService<FoodDto> _service;
+        private readonly IListView<FoodDto> _view;
 
-        public FoodPresenter(IFoodService service, IFoodListView view)
+        public FoodPresenter(IService<FoodDto> service, IListView<FoodDto> view)
         {
             _service = service;
             _view = view;
         }
 
-        public async Task LoadFoodsAsync()
+        public async Task LoadItemsAsync()
         {
             try
             {
                 var foods = await _service.GetAllAsync();
-                _view.ShowFoods(foods);
+                _view.ShowItems(foods);
             }
             catch (Exception ex)
             {
@@ -27,13 +27,13 @@ namespace FoodManagement.Presenters.Foods
             }
         }
 
-        public async Task LoadFoodByIdAsync(string id)
+        public async Task LoadItemByIdAsync(string id)
         {
             try
             {
                 var food = await _service.GetByIdAsync(id);
                 if (food != null)
-                    _view.ShowFoodDetail(food);
+                    _view.ShowItemDetail(food);
                 else
                     _view.ShowMessage("Không tìm thấy món ăn.");
             }
@@ -43,13 +43,13 @@ namespace FoodManagement.Presenters.Foods
             }
         }
 
-        public async Task CreateFoodAsync(FoodDto dto)
+        public async Task CreateItemAsync(FoodDto dto)
         {
             try
             {
                 await _service.CreateAsync(dto);
                 _view.ShowMessage("Thêm món ăn thành công.");
-                await LoadFoodsAsync(); // reload danh sách
+                await LoadItemsAsync(); // reload danh sách
             }
             catch (Exception ex)
             {
@@ -57,13 +57,13 @@ namespace FoodManagement.Presenters.Foods
             }
         }
 
-        public async Task UpdateFoodAsync(FoodDto dto)
+        public async Task UpdateItemAsync(FoodDto dto)
         {
             try
             {
                 await _service.UpdateAsync(dto);
                 _view.ShowMessage("Cập nhật món ăn thành công.");
-                await LoadFoodsAsync();
+                await LoadItemsAsync();
             }
             catch (Exception ex)
             {
@@ -71,13 +71,13 @@ namespace FoodManagement.Presenters.Foods
             }
         }
 
-        public async Task DeleteFoodAsync(string id)
+        public async Task DeleteItemAsync(string id)
         {
             try
             {
                 await _service.DeleteAsync(id);
                 _view.ShowMessage("Xóa món ăn thành công.");
-                await LoadFoodsAsync();
+                await LoadItemsAsync();
             }
             catch (Exception ex)
             {
