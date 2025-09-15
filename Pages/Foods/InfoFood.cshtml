@@ -1,0 +1,46 @@
+﻿@page "{id:int}"
+@model FoodManagement.Pages.Foods.InfoFoodModel
+@{
+    ViewData["Title"] = "Chi tiết món ăn";
+    var food = Model.Food;
+}
+
+@if (food == null)
+{
+    <div class="alert alert-danger">Không tìm thấy món ăn.</div>
+}
+else
+{
+    <div class="container py-4">
+        <div class="row">
+            <div class="col-md-5">
+                <img src="@food.image" alt="@food.name" class="img-fluid rounded shadow" style="max-height:350px;object-fit:cover;" />
+                @if (food.Images != null && food.Images.Any())
+                {
+                    <div class="mt-3 d-flex flex-wrap gap-2">
+                        @foreach (var img in food.Images)
+                        {
+                            <img src="@img.url" alt="Ảnh phụ" class="img-thumbnail" style="width:80px;height:80px;object-fit:cover;" />
+                        }
+                    </div>
+                }
+            </div>
+            <div class="col-md-7">
+                <h2 class="mb-3">@food.name</h2>
+                <p class="text-muted">@food.description</p>
+                <ul class="list-group mb-3">
+                    <li class="list-group-item"><strong>Giá:</strong> @food.price.ToString("N0") VNĐ</li>
+                    <li class="list-group-item"><strong>Giảm giá:</strong> @(food.sale > 0 ? $"{food.sale}%" : "-")</li>
+                    <li class="list-group-item"><strong>Phổ biến:</strong> @(food.popular ? "Có" : "Không")</li>
+                </ul>
+                @if (!string.IsNullOrEmpty(food.banner))
+                {
+                    <div class="mb-3">
+                        <img src="@food.banner" alt="Banner" class="img-fluid rounded" style="max-height:120px;object-fit:cover;" />
+                    </div>
+                }
+                <a asp-page="/Foods/FoodPage" class="btn btn-secondary"><i class="bx bx-arrow-back"></i> Quay lại danh sách</a>
+            </div>
+        </div>
+    </div>
+}

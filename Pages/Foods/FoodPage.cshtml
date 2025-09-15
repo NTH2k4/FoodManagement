@@ -1,0 +1,292 @@
+﻿@page
+@model FoodManagement.Pages.Foods.FoodPageModel
+@{
+    ViewData["Title"] = "Danh sách món ăn";
+}
+
+<style>
+.img-banner-fixed {
+    width: 150px;
+    height: 100px;
+    object-fit: cover;
+}
+</style>
+
+<div class="container-xxl flex-grow-1 container-p-y">
+    <!-- Search -->
+    <div class="layout-navbar container-xxl navbar navbar-expand-xl bg-navbar-theme">
+        <div class="navbar-nav-right d-flex align-items-center" id="navbar-collapse">
+            <div class="navbar-nav align-items-center" style="width:100%;">
+                <div class="nav-item d-flex align-items-center" style="width:100%;">
+                    <i class="bx bx-search fs-4 lh-0"></i>
+                    <form method="get" class="d-flex align-items-center flex-grow-1 ms-2" style="width:100%;">
+                        <input type="text"
+                               name="SearchTerm"
+                               value="@Model.SearchTerm"
+                               class="form-control border-0 shadow-none flex-grow-1"
+                               style="min-width:0;"
+                               placeholder="Tìm kiếm theo tên..."
+                               aria-label="Tìm kiếm theo tên..." />
+                        <button type="submit" class="btn btn-outline-secondary ms-2">Tìm</button>
+                        <!-- Giữ lại các tham số phân trang/sắp xếp khi tìm kiếm -->
+                        <input type="hidden" name="pages" value="@Model.pages" />
+                        <input type="hidden" name="PageSize" value="@Model.PageSize" />
+                        <input type="hidden" name="SortColumn" value="@Model.SortColumn" />
+                        <input type="hidden" name="SortOrder" value="@Model.SortOrder" />
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- /Search-->
+    <div class="card">
+        <h5 class="card-header">Danh sách món ăn</h5>
+        <div class="card-body">
+            @if (!string.IsNullOrEmpty(Model.Error))
+            {
+                <div class="alert alert-danger">@Model.Error</div>
+            }
+            else if (!string.IsNullOrEmpty(Model.Message))
+            {
+                <div class="alert alert-success">@Model.Message</div>
+            }
+
+            <div class="table-responsive text-nowrap">
+                <table class="table table-bordered align-middle">
+                    @{
+                        string GetSortOrder(string column)
+                        {
+                            if (Model.SortColumn == column)
+                                return Model.SortOrder == "asc" ? "desc" : "asc";
+                            return "asc";
+                        }
+                        string GetSortIcon(string column)
+                        {
+                            if (Model.SortColumn != column) return "";
+                            return Model.SortOrder == "asc"
+                                ? "<i class=\"bx bx-up-arrow-alt text-success\"></i>"
+                                : "<i class=\"bx bx-down-arrow-alt text-danger\"></i>";
+                        }
+                        string GetSortClass(string column)
+                        {
+                            return Model.SortColumn == column ? "text-primary fw-bold" : "";
+                        }
+                    }
+                    <thead>
+                        <tr>
+                            <th>Id</th>
+                            <th>Ảnh</th>
+                            <th>
+                                <a asp-page="./FoodPage"
+                                   asp-route-SortColumn="name"
+                                   asp-route-SortOrder="@GetSortOrder("name")"
+                                   asp-route-Page="@Model.Page"
+                                   asp-route-PageSize="@Model.PageSize"
+                                   asp-route-SearchTerm="@Model.SearchTerm"
+                                   class="@GetSortClass("name")"
+                                   style="text-decoration:none;">
+                                    Tên món ăn @Html.Raw(GetSortIcon("name"))
+                                </a>
+                            </th>
+                            <th>
+                                <a asp-page="./FoodPage"
+                                   asp-route-SortColumn="price"
+                                   asp-route-SortOrder="@GetSortOrder("price")"
+                                   asp-route-Page="@Model.Page"
+                                   asp-route-PageSize="@Model.PageSize"
+                                   asp-route-SearchTerm="@Model.SearchTerm"
+                                   class="@GetSortClass("price")"
+                                   style="text-decoration:none;">
+                                    Giá @Html.Raw(GetSortIcon("price"))
+                                </a>
+                            </th>
+                            <th>
+                                <a asp-page="./FoodPage"
+                                   asp-route-SortColumn="sale"
+                                   asp-route-SortOrder="@GetSortOrder("sale")"
+                                   asp-route-Page="@Model.Page"
+                                   asp-route-PageSize="@Model.PageSize"
+                                   asp-route-SearchTerm="@Model.SearchTerm"
+                                   class="@GetSortClass("sale")"
+                                   style="text-decoration:none;">
+                                    Giảm giá (%) @Html.Raw(GetSortIcon("sale"))
+                                </a>
+                            </th>
+                            <th>
+                                <a asp-page="./FoodPage"
+                                   asp-route-SortColumn="popular"
+                                   asp-route-SortOrder="@GetSortOrder("popular")"
+                                   asp-route-Page="@Model.Page"
+                                   asp-route-PageSize="@Model.PageSize"
+                                   asp-route-SearchTerm="@Model.SearchTerm"
+                                   class="@GetSortClass("popular")"
+                                   style="text-decoration:none;">
+                                    Phổ biến @Html.Raw(GetSortIcon("popular"))
+                                </a>
+                            </th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Foods != null && Model.Foods.Any())
+                        {
+                            @foreach (var food in Model.Foods)
+                            {
+                                <tr style="cursor:pointer;" onclick="window.location.href='@Url.Page("/Foods/InfoFood", new { id = food.id })'">
+                                    <td>@food.id</td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(food.image))
+                                        {
+                                            <img src="@food.image" alt="@food.name Banner" class="img-thumbnail img-banner-fixed" />
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">No Banner</span>
+                                        }
+                                    </td>
+                                    <td><strong>@food.name</strong></td>
+                                    <td>@food.price.ToString("N0") VNĐ</td>
+                                    <td>@(food.sale > 0 ? $"{food.sale}%" : "-")</td>
+                                    <td>
+                                        @if (food.popular)
+                                        {
+                                            <span class="badge bg-success">Có</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">Không</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="dropdown">
+                                            <button type="button"
+                                                    class="btn p-0 dropdown-toggle hide-arrow"
+                                                    data-bs-toggle="dropdown"
+                                                    onclick="event.stopPropagation();">
+                                                <i class="bx bx-dots-vertical-rounded"></i>
+                                            </button>
+                                            <div class="dropdown-menu" onclick="event.stopPropagation();">
+                                                <a class="dropdown-item" asp-page="/Foods/EditFood" asp-route-id="@food.id">
+                                                    <i class="bx bx-edit-alt me-1"></i> Edit
+                                                </a>
+                                                <button type="button" class="dropdown-item text-danger"
+                                                        data-bs-toggle="modal" data-bs-target="#deleteModal"
+                                                        data-id="@food.id" data-name="@food.name"
+                                                        onclick="event.stopPropagation();">
+                                                    <i class="bx bx-trash me-1"></i> Delete
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="10" class="text-center text-muted">Chưa có món ăn nào</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @if (Model.Pagination.TotalPages > 1)
+            {
+                <nav>
+                    <ul class="pagination justify-content-center">
+                        <li class="page-item @(Model.Pagination.HasPrevious ? "" : "disabled")">
+                            <a class="page-link" asp-page="./FoodPage"
+                               asp-route-pages="@(Model.Pagination.CurrentPage - 1)"
+                               asp-route-pageSize="@Model.Pagination.PageSize"
+                               asp-route-sortColumn="@Model.SortColumn"
+                               asp-route-sortOrder="@Model.SortOrder"
+                               asp-route-SearchTerm="@Model.SearchTerm">&laquo;</a>
+                        </li>
+                        @for (int i = 1; i <= Model.Pagination.TotalPages; i++)
+                        {
+                            <li class="page-item @(i == Model.Pagination.CurrentPage ? "active" : "")">
+                                <a class="page-link" asp-page="./FoodPage"
+                                   asp-route-pages="@i"
+                                   asp-route-pageSize="@Model.Pagination.PageSize"
+                                   asp-route-sortColumn="@Model.SortColumn"
+                                   asp-route-sortOrder="@Model.SortOrder"
+                                   asp-route-SearchTerm="@Model.SearchTerm">@i</a>
+                            </li>
+                        }
+                        <li class="page-item @(Model.Pagination.HasNext ? "" : "disabled")">
+                            <a class="page-link" asp-page="./FoodPage"
+                               asp-route-pages="@(Model.Pagination.CurrentPage + 1)"
+                               asp-route-pageSize="@Model.Pagination.PageSize"
+                               asp-route-sortColumn="@Model.SortColumn"
+                               asp-route-sortOrder="@Model.SortOrder"
+                               asp-route-SearchTerm="@Model.SearchTerm">&raquo;</a>
+                        </li>
+                    </ul>
+                </nav>
+            }
+        </div>
+    </div>
+</div>
+<!-- Modal Xác nhận xóa -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- form sẽ submit đến handler OnPostDeleteAsync -->
+            <form method="post" asp-page-handler="Delete" id="deleteForm">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteModalLabel">Xác nhận xóa</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    Bạn có chắc chắn muốn xóa món ăn <strong id="deleteFoodName"></strong>?
+                    <!-- hidden input có name rõ ràng để model binder bắt -->
+                    <input type="hidden" name="DeleteId" id="deleteFoodId" value="" />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-danger">Xóa</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // debug: kiểm tra modal đang được set id gì
+        var deleteModal = document.getElementById('deleteModal');
+        if (deleteModal) {
+            deleteModal.addEventListener('show.bs.modal', function (event) {
+                var button = event.relatedTarget; // button that triggered the modal
+                console.log("delete modal show event, relatedTarget:", button);
+
+                var foodId = button?.getAttribute('data-id') ?? '';
+                var foodName = button?.getAttribute('data-name') ?? '';
+
+                var modalFoodName = deleteModal.querySelector('#deleteFoodName');
+                var modalFoodId = deleteModal.querySelector('#deleteFoodId');
+
+                if (modalFoodName) modalFoodName.textContent = foodName;
+                if (modalFoodId) modalFoodId.value = foodId;
+
+                console.log("Set deleteId =", modalFoodId ? modalFoodId.value : '(no input)');
+            });
+
+            // trước khi submit, kiểm tra giá trị hidden input, nếu rỗng thì prevent submit và báo lỗi
+            var deleteForm = document.getElementById('deleteForm');
+            if (deleteForm) {
+                deleteForm.addEventListener('submit', function (e) {
+                    var modalFoodId = document.getElementById('deleteFoodId');
+                    var val = modalFoodId ? modalFoodId.value : '';
+                    console.log("Submitting delete form, DeleteId=", val);
+                    if (!val || val.trim() === '') {
+                        e.preventDefault();
+                        alert('Không tìm thấy id để xóa. Vui lòng thử lại.');
+                    }
+                });
+            }
+        }
+    </script>
+}
+
