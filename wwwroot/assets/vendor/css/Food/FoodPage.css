@@ -1,0 +1,43 @@
+﻿:root {
+    --app-footer-height: 72px; /* chỉnh nếu footer cao hơn */
+}
+
+/* small helper styles specific to this page */
+.img-banner-fixed {
+    width: 80px;
+    height: 60px;
+    object-fit: cover;
+}
+
+/* Topbar: sticky **within page content** */
+.page-topbar {
+    position: -webkit-sticky;
+    position: sticky;
+    top: 0;
+    z-index: 1020;
+    background-color: #ffffff;
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.fixed-footer {
+    position: -webkit-sticky;
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #fff;
+    border-top: 1px solid #e5e7eb;
+    padding: 0.5rem 1rem;
+    z-index: 1100;
+}
+
+/* ensure table content not hidden behind footer */
+.page-content-padding {
+    padding-bottom: calc(var(--app-footer-height) + 16px);
+}
+
+/* small tweaks */
+.table-responsive {
+    margin-bottom: 0;
+}

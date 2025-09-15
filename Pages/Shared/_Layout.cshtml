@@ -11,7 +11,7 @@
     <meta name="viewport"
           content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0" />
 
-    <title>Dashboard - Analytics | Sneat - Bootstrap 5 HTML Admin Template - Pro</title>
+    <title>Dashboard</title>
 
     <meta name="description" content="" />
 
@@ -52,7 +52,7 @@
         <div class="layout-container">
             <!-- Menu -->
 
-            <aside id="layout-menu" class="layout-menu menu-vertical menu bg-menu-theme">
+            <aside id="layout-menu" class="layout-menu menu-vertical menu bg-menu-theme border-end border-2">
                 <div class="app-brand demo">
                     <a href="index.html" class="app-brand-link">
                         <span class="app-brand-logo demo">
@@ -178,15 +178,31 @@
             <!-- / Menu -->
             <!-- Layout container -->
             <div class="layout-page">
+                <nav class="layout-navbar navbar navbar-expand-xl align-items-center bg-navbar-theme p-0 m-0 w-100 px-4 border-bottom border-1" id="layout-navbar">
+                    <div class="layout-menu-toggle navbar-nav align-items-xl-center me-3 me-xl-0 d-xl-none">
+                        <a class="nav-item nav-link px-0 me-xl-4" href="javascript:void(0)">
+                            <i class="bx bx-menu bx-sm"></i>
+                        </a>
+                    </div>
+                    <div class="d-flex align-items-center flex-grow-1">
+                        <p class="mb-0 fs-5"><strong>@ViewData["Title"]</strong></p>
+                    </div>
+                </nav>
+                @RenderBody()
+            </div>
+            @* <div class="layout-page">
                 <nav class="layout-navbar container-xxl navbar navbar-expand-xl navbar-detached align-items-center bg-navbar-theme" id="layout-navbar">
                     <div class="layout-menu-toggle navbar-nav align-items-xl-center me-3 me-xl-0 d-xl-none">
                         <a class="nav-item nav-link px-0 me-xl-4" href="javascript:void(0)">
                             <i class="bx bx-menu bx-sm"></i>
                         </a>
                     </div>
+                    <div class="d-flex align-items-center flex-grow-1">
+                        <p class="mb-0 fs-5">@ViewData["Title"]</p>
+                    </div>
                 </nav>
                 @RenderBody()
-            </div>
+            </div> *@
             <!-- / Layout page -->
         </div>
 

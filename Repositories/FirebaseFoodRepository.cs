@@ -56,7 +56,11 @@ namespace FoodManagement.Repositories
 
         public async Task CreateAsync(FoodDto dto, CancellationToken ct = default)
         {
-            var id = dto.id != 0 ? dto.id.ToString() : Guid.NewGuid().ToString();
+            var allFoods = await GetAllAsync(ct);
+            int maxId = allFoods.Any() ? allFoods.Max(f => f.id) : 0;
+            var id = dto.id != 0 ? dto.id.ToString() : (maxId + 1).ToString();
+            dto.id = int.Parse(id);
+
             var url = BuildUrl(id);
             var response = await _httpClient.PutAsJsonAsync(url, dto, ct);
             response.EnsureSuccessStatusCode();
