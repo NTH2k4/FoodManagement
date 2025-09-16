@@ -4,90 +4,195 @@
     ViewData["Title"] = "Sửa món ăn";
 }
 
-<h2>Sửa món ăn</h2>
-
-@if (!string.IsNullOrEmpty(Model.Error))
-{
-    <div class="alert alert-danger">@Model.Error</div>
-}
-@if (!string.IsNullOrEmpty(Model.Message))
-{
-    <div class="alert alert-success">@Model.Message</div>
-}
-
-<form method="post">
-    <input type="hidden" asp-for="Food.id" />
-    <div class="mb-3">
-        <label class="form-label">Tên món ăn</label>
-        <input asp-for="Food.name" class="form-control" />
-        <span asp-validation-for="Food.name" class="text-danger"></span>
-    </div>
-
-    <div class="mb-3">
-        <label class="form-label">Ảnh (image)</label>
-        <input asp-for="Food.image" class="form-control" />
-    </div>
-
-    <div class="mb-3">
-        <label class="form-label">Banner</label>
-        <input asp-for="Food.banner" class="form-control" />
-    </div>
-
-    <div class="mb-3">
-        <label class="form-label">Mô tả</label>
-        <textarea asp-for="Food.description" class="form-control"></textarea>
-    </div>
-
-    <div class="row">
-        <div class="col-md-4 mb-3">
-            <label class="form-label">Giá</label>
-            <input asp-for="Food.price" class="form-control" />
-        </div>
-        <div class="col-md-4 mb-3">
-            <label class="form-label">Giảm giá (%)</label>
-            <input asp-for="Food.sale" class="form-control" />
-        </div>
-        <div class="col-md-4 mb-3">
-            <label class="form-label">Phổ biến</label>
-            <div class="form-check">
-                <input asp-for="Food.popular" class="form-check-input" />
-                <label class="form-check-label">Có</label>
+<div class="container-xxl py-3">
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <h4 class="mb-0">Sửa món ăn</h4>
+                <a asp-page="/Foods/FoodPage" class="btn btn-outline-secondary">Quay về danh sách</a>
             </div>
+
+            @if (!string.IsNullOrEmpty(Model.Error))
+            {
+                <div class="alert alert-danger">@Model.Error</div>
+            }
+            @if (!string.IsNullOrEmpty(Model.Message))
+            {
+                <div class="alert alert-success">@Model.Message</div>
+            }
+
+            <form method="post" novalidate>
+                <input type="hidden" asp-for="Food.id" />
+                <div class="row g-3">
+                    <!-- left: ảnh preview -->
+                    <div class="col-lg-4">
+                        <div class="mb-3">
+                            <label class="form-label">Ảnh chính (image URL)</label>
+                            <input asp-for="Food.image" class="form-control" placeholder="https://..." />
+                            <span class="text-muted small">Dán URL ảnh (preview tự động)</span>
+                            <span asp-validation-for="Food.image" class="text-danger small"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Banner (banner URL)</label>
+                            <input asp-for="Food.banner" class="form-control" placeholder="https://..." />
+                            <span asp-validation-for="Food.banner" class="text-danger small"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Preview</label>
+                            <div class="border rounded p-2 text-center">
+                                <img id="previewImage" src="@Model.Food.image" alt="Image preview" style="max-width:100%; max-height:200px; object-fit:cover;" />
+                                <div class="mt-2">
+                                    <img id="previewBanner" src="@Model.Food.banner" alt="Banner preview" style="max-width:100%; max-height:80px; object-fit:cover;" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Ảnh phụ (mỗi dòng 1 URL)</label>
+                            <textarea id="imagesText" class="form-control" rows="5" placeholder="https://...">@(
+                                Model.Food.Images != null ? string.Join("\n", Model.Food.Images.Select(i => i.url)) : ""
+                            )</textarea>
+                            <small class="text-muted">Khi lưu, các URL sẽ được chuyển thành ImageDto[].</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Preview ảnh phụ</label>
+                            <div id="extraImagesPreview" class="d-flex gap-2 flex-wrap"></div>
+                        </div>
+                    </div>
+
+                    <!-- right: form chính -->
+                    <div class="col-lg-8">
+                        <div class="row g-3">
+                            <div class="col-md-8">
+                                <label class="form-label">Tên món ăn *</label>
+                                <input asp-for="Food.name" class="form-control" required />
+                                <span asp-validation-for="Food.name" class="text-danger small"></span>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label class="form-label">Phổ biến</label>
+                                <div class="form-check mt-2">
+                                    <input asp-for="Food.popular" class="form-check-input" />
+                                    <label class="form-check-label">Hiển thị là phổ biến</label>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label class="form-label">Giá (VNĐ)</label>
+                                <input asp-for="Food.price" type="number" min="0" class="form-control" />
+                                <span asp-validation-for="Food.price" class="text-danger small"></span>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label class="form-label">Giảm giá (%)</label>
+                                <input asp-for="Food.sale" type="number" min="0" max="100" class="form-control" />
+                                <span asp-validation-for="Food.sale" class="text-danger small"></span>
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label">Mô tả</label>
+                                <textarea asp-for="Food.description" rows="6" class="form-control"></textarea>
+                                <span asp-validation-for="Food.description" class="text-danger small"></span>
+                            </div>
+
+                            <div class="col-12 d-flex gap-2 justify-content-end mt-2">
+                                <button type="submit" class="btn btn-primary">Lưu</button>
+                                <a asp-page="/Foods/FoodPage" class="btn btn-outline-secondary">Hủy</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
-
-    <div class="mb-3">
-        <label class="form-label">Images (URLs) — mỗi dòng 1 url</label>
-        <textarea id="imagesText" class="form-control">@(
-            Model.Food.Images != null ? string.Join("\n", Model.Food.Images.Select(i => i.url)) : ""
-        )</textarea>
-        <small class="text-muted">Khi lưu, các URL sẽ được chuyển thành ImageDto[].</small>
-    </div>
-
-    <button type="submit" class="btn btn-primary">Lưu</button>
-    <a asp-page="/Foods/FoodPage" class="btn btn-secondary ms-2">Hủy</a>
-</form>
+</div>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     <script>
+        // Preview image + banner khi nhập url
+        function setPreview(elId, url) {
+            const el = document.getElementById(elId);
+            if (!el) return;
+            if (url && url.trim() !== "") {
+                el.src = url.trim();
+                el.style.display = '';
+            } else {
+                el.src = '';
+                el.style.display = 'none';
+            }
+        }
+
+        // cập nhật preview từ input
+        const imgInput = document.querySelector('input[name="Food.image"]');
+        const bannerInput = document.querySelector('input[name="Food.banner"]');
+        const extraInput = document.getElementById('imagesText');
+        const extraPreview = document.getElementById('extraImagesPreview');
         const form = document.querySelector('form');
+
+        if (imgInput) {
+            imgInput.addEventListener('input', () => setPreview('previewImage', imgInput.value));
+            setPreview('previewImage', imgInput.value);
+        }
+        if (bannerInput) {
+            bannerInput.addEventListener('input', () => setPreview('previewBanner', bannerInput.value));
+            setPreview('previewBanner', bannerInput.value);
+        }
+
+        function renderExtraImages() {
+            if (!extraInput || !extraPreview) return;
+            extraPreview.innerHTML = '';
+            const lines = extraInput.value.split(/[\r\n]+/).map(s => s.trim()).filter(Boolean);
+            lines.forEach(url => {
+                const wrapper = document.createElement('div');
+                wrapper.style.width = '96px';
+                wrapper.style.height = '60px';
+                wrapper.style.overflow = 'hidden';
+                wrapper.style.border = '1px solid #e9ecef';
+                wrapper.style.borderRadius = '6px';
+                wrapper.style.display = 'inline-block';
+                wrapper.style.background = '#fafafa';
+                const img = document.createElement('img');
+                img.src = url;
+                img.style.width = '100%';
+                img.style.height = '100%';
+                img.style.objectFit = 'cover';
+                wrapper.title = url;
+                wrapper.appendChild(img);
+                extraPreview.appendChild(wrapper);
+            });
+        }
+
+        if (extraInput) {
+            extraInput.addEventListener('input', renderExtraImages);
+            renderExtraImages();
+        }
+
+        // Khi submit, chuyển các url ảnh phụ thành input ẩn
         form.addEventListener('submit', function () {
             document.querySelectorAll('input[name^="Food.Images"]').forEach(n => n.remove());
-
-            const lines = document.getElementById('imagesText').value
+            const lines = extraInput.value
                 .split(/\r?\n/)
                 .map(l => l.trim())
                 .filter(l => l.length > 0);
-
             lines.forEach((url, idx) => {
                 const inUrl = document.createElement('input');
                 inUrl.type = 'hidden';
                 inUrl.name = `Food.Images[${idx}].url`;
                 inUrl.value = url;
                 form.appendChild(inUrl);
-
             });
         });
+
+        // Auto-hide alerts
+        setTimeout(() => {
+            document.querySelectorAll('.alert').forEach(alert => {
+                alert.classList.add('fade');
+                setTimeout(() => alert.remove(), 500);
+            });
+        }, 3000);
     </script>
 }

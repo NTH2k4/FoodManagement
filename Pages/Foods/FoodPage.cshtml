@@ -20,7 +20,7 @@
     }
 }
 
-<link rel="stylesheet" href="/assets/vendor/css/Food/FoodPage.css" />
+<link rel="stylesheet" href="/assets/vendor/css/ListPage.css" />
 
 <div class="flex-grow-1 container-p-y page-content-padding">
     <!-- Topbar (sticky in this page only) -->
@@ -223,15 +223,15 @@
                                             </button>
                                             <div class="dropdown-menu" onclick="event.stopPropagation();">
                                                 <a class="dropdown-item"
-                                                   href="@Url.Page("/Foods/EditFood", new { id = food.id })"
+                                                   href="@Url.Page("./EditFood", new { id = food.id })"
                                                    onclick="event.stopPropagation();">
-                                                    <i class="bx bx-edit-alt me-1"></i> Edit
+                                                    <i class="bx bx-edit-alt me-1"></i> Sửa
                                                 </a>
                                                 <button type="button" class="dropdown-item text-danger"
                                                         data-bs-toggle="modal" data-bs-target="#deleteModal"
                                                         data-id="@food.id" data-name="@food.name"
                                                         onclick="event.stopPropagation();">
-                                                    <i class="bx bx-trash me-1"></i> Delete
+                                                    <i class="bx bx-trash me-1"></i> Xóa
                                                 </button>
                                             </div>
                                         </div>

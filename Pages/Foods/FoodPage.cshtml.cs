@@ -13,8 +13,10 @@ namespace FoodManagement.Pages.Foods
 
         private IEnumerable<FoodDto> _allFoods = new List<FoodDto>();
         public IEnumerable<FoodDto> Foods { get; private set; } = new List<FoodDto>();
-        public string? Message { get; private set; }
-        public string? Error { get; private set; }
+        [TempData]
+        public string? Message { get; set; }
+        [TempData]
+        public string? Error { get; set; }
 
         [BindProperty(SupportsGet = true)]
         public int pages { get; set; } = 1;
@@ -97,15 +99,17 @@ namespace FoodManagement.Pages.Foods
                     Error = $"Lỗi khi xóa: {ex.Message}";
                 }
             }
-            // reload data
-            var foods = await _service.GetAllAsync();
-            Foods = foods.ToList();
-
-            return Page();
+            return RedirectToPage(new {
+                pages = pages,
+                PageSize = PageSize,
+                SortColumn = SortColumn,
+                SortOrder = SortOrder,
+                SearchTerm = SearchTerm
+            });
         }
 
         // ===============================
-        // Implementation of IFoodListView
+        // Implementation of IListView
         // ===============================
         public void ShowItems(IEnumerable<FoodDto> foods)
         {
