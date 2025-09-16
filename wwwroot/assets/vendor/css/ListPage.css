@@ -29,7 +29,7 @@
     background: #fff;
     border-top: 1px solid #e5e7eb;
     padding: 0.5rem 1rem;
-    z-index: 1100;
+    z-index: 1020;
 }
 
 /* ensure table content not hidden behind footer */
