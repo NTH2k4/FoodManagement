@@ -12,10 +12,10 @@ namespace FoodManagement.Repositories
         private const string FoodNode = "food";
         private readonly string? _authToken;
 
-        public FirebaseFoodRepository()
+        public FirebaseFoodRepository(IConfiguration configuration)
         {
             _httpClient = new HttpClient();
-            _databaseUrl = "https://foodordermvp-e4f07-default-rtdb.firebaseio.com";
+            _databaseUrl = configuration["Firebase:DatabaseUrl"] ?? throw new InvalidOperationException("DatabaseUrl not configured");
             _authToken = null;
         }
 

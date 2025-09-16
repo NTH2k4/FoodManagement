@@ -78,19 +78,19 @@
                                                 <mask id="mask-2" fill="white">
                                                     <use xlink:href="#path-1"></use>
                                                 </mask>
-                                                <use fill="#696cff" xlink:href="#path-1"></use>
+                                                <use fill="#FE5256" xlink:href="#path-1"></use>
                                                 <g id="Path-3" mask="url(#mask-2)">
-                                                    <use fill="#696cff" xlink:href="#path-3"></use>
+                                                    <use fill="#FE5256" xlink:href="#path-3"></use>
                                                     <use fill-opacity="0.2" fill="#FFFFFF" xlink:href="#path-3"></use>
                                                 </g>
                                                 <g id="Path-4" mask="url(#mask-2)">
-                                                    <use fill="#696cff" xlink:href="#path-4"></use>
+                                                    <use fill="#FE5256" xlink:href="#path-4"></use>
                                                     <use fill-opacity="0.2" fill="#FFFFFF" xlink:href="#path-4"></use>
                                                 </g>
                                             </g>
                                             <g id="Triangle"
                                                transform="translate(19.000000, 11.000000) rotate(-300.000000) translate(-19.000000, -11.000000) ">
-                                                <use fill="#696cff" xlink:href="#path-5"></use>
+                                                <use fill="#FE5256" xlink:href="#path-5"></use>
                                                 <use fill-opacity="0.2" fill="#FFFFFF" xlink:href="#path-5"></use>
                                             </g>
                                         </g>
@@ -127,11 +127,26 @@
                         </a>
                     </li>
                     <li class="menu-item @(Context.Request.Path.StartsWithSegments("/Accounts") ? "active" : "")">
-                        <a asp-page="/Accounts/AccountPage" class="menu-link">
-                            <i class="menu-icon tf-icons bx bx-user"></i>
+                        <a href="javascript:void(0);" class="menu-link menu-toggle">
+                            <i class="menu-icon tf-icons bx bx-dock-top"></i>
                             <div data-i18n="">Quản lý tài khoản</div>
                         </a>
+                        <ul class="menu-sub">
+							<li class="menu-item @(Context.Request.Path.StartsWithSegments("/Accounts/User/UserPage") ? "active" : "")">
+								<a asp-page="/Accounts/User/UserPage" class="menu-link">
+									<i class="menu-icon tf-icons bx bx-user"></i>
+									<div data-i18n="">Người dùng</div>
+								</a>
+							</li>
+							<li class="menu-item @(Context.Request.Path.StartsWithSegments("/Accounts/User/AdminPage") ? "active" : "")">
+								<a asp-page="/Accounts/User/UserPage" class="menu-link">
+									<i class="menu-icon tf-icons bx bx-user"></i>
+									<div data-i18n="">Admin</div>
+								</a>
+							</li>
+                        </ul>
                     </li>
+                    
                     <li class="menu-item @(Context.Request.Path.StartsWithSegments("/Customers") ? "active" : "")">
                         <a asp-page="/Customers/CustomerPage" class="menu-link">
                             <i class="menu-icon tf-icons bx bx-customize"></i>
@@ -142,6 +157,12 @@
                         <a asp-page="/Bills/BillPage" class="menu-link">
                             <i class="menu-icon tf-icons bx bx-credit-card-alt"></i>
                             <div data-i18n="">Quản lý hóa đơn</div>
+                        </a>
+                    </li>
+                    <li class="menu-item @(Context.Request.Path.StartsWithSegments("/Feedbacks") ? "active" : "")">
+                        <a asp-page="/Feedbacks/FeedbackPage" class="menu-link">
+                            <i class="menu-icon tf-icons bx bx-mail-send"></i>
+                            <div data-i18n="">Quản lý phản hồi</div>
                         </a>
                     </li>
                     <!-- Thống kê -->
@@ -190,19 +211,6 @@
                 </nav>
                 @RenderBody()
             </div>
-            @* <div class="layout-page">
-                <nav class="layout-navbar container-xxl navbar navbar-expand-xl navbar-detached align-items-center bg-navbar-theme" id="layout-navbar">
-                    <div class="layout-menu-toggle navbar-nav align-items-xl-center me-3 me-xl-0 d-xl-none">
-                        <a class="nav-item nav-link px-0 me-xl-4" href="javascript:void(0)">
-                            <i class="bx bx-menu bx-sm"></i>
-                        </a>
-                    </div>
-                    <div class="d-flex align-items-center flex-grow-1">
-                        <p class="mb-0 fs-5">@ViewData["Title"]</p>
-                    </div>
-                </nav>
-                @RenderBody()
-            </div> *@
             <!-- / Layout page -->
         </div>
 

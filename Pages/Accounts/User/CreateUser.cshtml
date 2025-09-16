@@ -1,0 +1,76 @@
+﻿@page
+@model FoodManagement.Pages.Accounts.User.CreateUserModel
+@{
+    ViewData["Title"] = "Thêm tài khoản khách hàng";
+}
+
+<div class="container-xxl py-3">
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <h4 class="mb-0">Thêm tài khoản khách hàng</h4>
+                <a asp-page="./UserPage" class="btn btn-outline-secondary">Quay về danh sách</a>
+            </div>
+
+            @if (!string.IsNullOrEmpty(Model.Error))
+            {
+                <div class="alert alert-danger">@Model.Error</div>
+            }
+            @if (!string.IsNullOrEmpty(Model.Message))
+            {
+                <div class="alert alert-success">@Model.Message</div>
+            }
+
+            <form method="post" novalidate>
+                <div class="row g-3">
+                    <!-- right: form chính -->
+                    <div class="col-lg-8">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Họ tên *</label>
+                                <input asp-for="User.fullName" class="form-control" required />
+                                <span asp-validation-for="User.fullName" class="text-danger small"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Số điện thoại *</label>
+                                <input asp-for="User.phone" class="form-control" required />
+                                <span asp-validation-for="User.phone" class="text-danger small"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Email *</label>
+                                <input asp-for="User.email" class="form-control" required type="email" />
+                                <span asp-validation-for="User.email" class="text-danger small"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Mật khẩu *</label>
+                                <input asp-for="User.password" class="form-control" required type="password" />
+                                <span asp-validation-for="User.password" class="text-danger small"></span>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Địa chỉ</label>
+                                <textarea asp-for="User.address" rows="2" class="form-control"></textarea>
+                                <span asp-validation-for="User.address" class="text-danger small"></span>
+                            </div>
+                            <div class="col-12 d-flex gap-2 justify-content-end mt-2">
+                                <button type="submit" class="btn btn-primary">Lưu</button>
+                                <a asp-page="./UserPage" class="btn btn-outline-secondary">Hủy</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        setTimeout(() => {
+            document.querySelectorAll('.alert').forEach(alert => {
+                alert.classList.add('fade');
+                setTimeout(() => alert.remove(), 500);
+            });
+        }, 3000);
+    </script>
+}
