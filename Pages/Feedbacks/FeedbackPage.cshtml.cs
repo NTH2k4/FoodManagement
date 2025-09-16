@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
-namespace FoodManagement.Pages.Accounts
+namespace FoodManagement.Pages.Feedbacks
 {
-    public class AccountPageModel : PageModel
+    public class FeedbackPageModel : PageModel
     {
         public void OnGet()
         {
