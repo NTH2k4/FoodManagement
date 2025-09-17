@@ -329,7 +329,6 @@
 
 @section Scripts {
     <script>
-        // Auto-hide alerts after 3s
         setTimeout(() => {
             document.querySelectorAll('.alert').forEach(alert => {
                 alert.classList.add('fade');
@@ -337,15 +336,15 @@
             });
         }, 3000);
 
-        // delete modal handling
-        var deleteModal = document.getElementById('deleteModal');
-        if (deleteModal) {
-            deleteModal.addEventListener('show.bs.modal', function (event) {
+        var deleteModalEl = document.getElementById('deleteModal');
+        if (deleteModalEl) {
+            deleteModalEl.addEventListener('show.bs.modal', function (event) {
                 var button = event.relatedTarget;
-                var userId = button?.getAttribute('data-id') ?? '';
-                var userName = button?.getAttribute('data-name') ?? '';
-                var modalUserName = deleteModal.querySelector('#deleteUserName');
-                var modalUserId = deleteModal.querySelector('#deleteUserId');
+                if (!button) return;
+                var userId = button.getAttribute('data-id') ?? '';
+                var userName = button.getAttribute('data-name') ?? '';
+                var modalUserName = deleteModalEl.querySelector('#deleteUserName');
+                var modalUserId = deleteModalEl.querySelector('#deleteUserId');
                 if (modalUserName) modalUserName.textContent = userName;
                 if (modalUserId) modalUserId.value = userId;
             });
@@ -363,46 +362,13 @@
             }
         }
 
-        // Prevent row click when clicking dropdown (extra safety)
-        document.querySelectorAll('.dropdown, .dropdown *').forEach(el => {
-            el.addEventListener('click', function (e) {
-                e.stopPropagation();
-            });
-        });
-        // Hiển thị modal user info nếu có
-        if (document.querySelector('.modal.show')) {
-            document.body.classList.add('modal-open');
-        }
-
-        function showUserInfo(el) {
-            if (!el) return;
-            // nếu click vào dropdown nội bộ, không xử lý (an toàn)
-            if (el.closest('.dropdown')) return;
-
-            const ds = el.dataset;
-            // fill fields
-            document.getElementById('ui-fullname').textContent = ds.fullname || '';
-            document.getElementById('ui-phone').textContent = ds.phone || '';
-            document.getElementById('ui-email').textContent = ds.email || '';
-            document.getElementById('ui-address').textContent = ds.address || '';
-            // cảnh báo: password hiển thị rõ - cân nhắc mask
-            document.getElementById('ui-password').textContent = ds.password || '';
-            document.getElementById('ui-created').textContent = ds.createdtext || '';
-
-            // show bootstrap modal
-            var modalEl = document.getElementById('userInfoModal');
-            var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-            modal.show();
-        }
-
-        // để bảo đảm click trên dropdown không kích hoạt row (n lần)
         document.querySelectorAll('.dropdown, .dropdown *').forEach(el => {
             el.addEventListener('click', function (e) {
                 e.stopPropagation();
             });
         });
 
-            const serverParams = {
+        const serverParams = {
             pages: '@(Model.Pagination?.CurrentPage ?? 1)',
             pageSize: '@Model.PageSize',
             sortColumn: '@(Model.SortColumn ?? "")',
@@ -412,7 +378,6 @@
 
         function showUserInfo(el) {
             if (!el) return;
-            // nếu click vào dropdown nội bộ, không xử lý
             if (el.closest('.dropdown')) return;
 
             const ds = el.dataset || {};
@@ -424,7 +389,6 @@
             const password = ds.password || '';
             const created = ds.createdtext || '';
 
-            // fill modal fields
             const fill = (idSel, value) => {
                 const node = document.getElementById(idSel);
                 if (node) node.textContent = value;
@@ -433,63 +397,46 @@
             fill('ui-phone', phone);
             fill('ui-email', email);
             fill('ui-address', address);
-            // CẢNH BÁO: hiện mật khẩu rõ ràng; nếu muốn mask, đổi value thành '••••'
             fill('ui-password', password);
             fill('ui-created', created);
 
-            // --- Prepare Edit button href (keep paging/sort/search) ---
             const editBtn = document.getElementById('userInfoEditBtn');
             if (editBtn) {
-                // base edit url (Razor will render correct path)
                 const editBase = '@Url.Page("./EditUser")';
                 const params = new URLSearchParams();
                 if (id) params.set('id', id);
-
-                // giữ trạng thái trang nếu có (tùy bạn có muốn)
                 if (serverParams.pages) params.set('pages', serverParams.pages);
                 if (serverParams.pageSize) params.set('PageSize', serverParams.pageSize);
                 if (serverParams.sortColumn) params.set('SortColumn', serverParams.sortColumn);
                 if (serverParams.sortOrder) params.set('SortOrder', serverParams.sortOrder);
                 if (serverParams.searchTerm) params.set('SearchTerm', serverParams.searchTerm);
-
                 editBtn.href = editBase + (params.toString() ? ('?' + params.toString()) : '');
-                // tránh bubble khi click
                 editBtn.onclick = function (ev) { ev.stopPropagation(); };
             }
 
-            // --- Prepare Delete button handler (use existing delete modal) ---
             const infoDel = document.getElementById('userInfoDeleteBtn');
             if (infoDel) {
-                // Replace node to remove previous listeners (prevent duplicates)
                 const newDel = infoDel.cloneNode(true);
                 infoDel.parentNode.replaceChild(newDel, infoDel);
 
                 newDel.addEventListener('click', function (ev) {
                     ev.stopPropagation();
-
-                    // hide the userInfo modal first
                     const userModalEl = document.getElementById('userInfoModal');
                     const userModal = bootstrap.Modal.getInstance(userModalEl);
                     if (userModal) userModal.hide();
-
-                    // set values into the delete modal inputs
                     const delNameEl = document.getElementById('deleteUserName');
                     const delIdEl = document.getElementById('deleteUserId');
                     if (delNameEl) delNameEl.textContent = name;
                     if (delIdEl) delIdEl.value = id;
-
-                    // show delete modal
                     const dEl = document.getElementById('deleteModal');
                     const dModal = bootstrap.Modal.getOrCreateInstance(dEl);
                     dModal.show();
                 });
             }
 
-            // show bootstrap modal for user info
             const modalEl = document.getElementById('userInfoModal');
             const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
             modal.show();
         }
     </script>
 }
-
