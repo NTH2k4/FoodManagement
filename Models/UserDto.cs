@@ -1,5 +1,6 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using FoodManagement.Validation;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using System.ComponentModel.DataAnnotations;
 
 namespace FoodManagement.Models
 {
@@ -7,16 +8,23 @@ namespace FoodManagement.Models
     {
         [BindNever]
         public string? id { get; set; } 
+
         [Required(ErrorMessage = "Họ tên là bắt buộc.")]
         public string fullName { get; set; } = default!;
+
         [Required(ErrorMessage = "Số điện thoại là bắt buộc.")]
         public string phone { get; set; } = default!;
+
         [Required(ErrorMessage = "Email là bắt buộc.")]
         [EmailAddress(ErrorMessage = "Email không hợp lệ.")]
         public string email { get; set; } = default!;
+
+        [Required(ErrorMessage = "Địa chỉ là bắt buộc.")]
         public string address { get; set; } = string.Empty;
-        [Required(ErrorMessage = "Mật khẩu là bắt buộc.")]
-        public string password { get; set; } = default!;
+
+        [RequiredOnCreate(ErrorMessage = "Mật khẩu là bắt buộc khi tạo tài khoản.")]
+        public string? password { get; set; }
+
         public long createdAt { get; set; } = (long)System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 60;
     }
 }

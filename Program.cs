@@ -8,6 +8,8 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddRazorPages();
 
+builder.Services.AddHttpContextAccessor();
+
 builder.Services.AddScoped<IRepository<FoodDto>, FirebaseFoodRepository>(IConfiguration => new FirebaseFoodRepository(IConfiguration.GetRequiredService<IConfiguration>()));
 builder.Services.AddScoped<IService<FoodDto>, FoodService>();
 

@@ -62,13 +62,8 @@ namespace FoodManagement.Pages.Accounts.User
                     Error = "Không tìm thấy người dùng.";
                     return Page();
                 }
-
-                // Load full DTO (bao gồm password) để hiển thị sẵn trong form
                 User = dto;
-
-                // đảm bảo Id property cũng được set (dùng để render hidden input)
                 Id = dto.id;
-
                 return Page();
             }
             catch (Exception ex)
@@ -80,20 +75,14 @@ namespace FoodManagement.Pages.Accounts.User
 
         public async Task<IActionResult> OnPostAsync()
         {
-            // Id should come from the hidden input (bound to Id property)
             if (string.IsNullOrEmpty(Id))
             {
                 Error = "Id người dùng không hợp lệ.";
                 return Page();
             }
-
-            // Because User.id has [BindNever], explicitly set it from Id so repository/update sees the id
             User.id = Id;
-
             try
             {
-                // If password is empty for some reason, preserve existing password from store
-                // This ensures the password input still displays a value if validation fails on other fields.
                 if (string.IsNullOrEmpty(User.password))
                 {
                     var existing = await _service.GetByIdAsync(Id);
@@ -105,17 +94,10 @@ namespace FoodManagement.Pages.Accounts.User
 
                 if (!ModelState.IsValid)
                 {
-                    // Return Page() so form is re-rendered with validation errors.
-                    // User object already contains values (and password preserved above).
                     return Page();
                 }
-
-                // perform update
                 await _service.UpdateAsync(User);
-
                 Message = "Cập nhật tài khoản thành công.";
-
-                // PRG: redirect về danh sách (giữ paging/sort/search)
                 return RedirectToPage("./UserPage", new
                 {
                     pages = Pages,
