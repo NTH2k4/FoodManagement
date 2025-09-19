@@ -163,13 +163,13 @@
                                     data-email="@user.email"
                                     data-address="@user.address"
                                     data-password="@user.password"
-                                    data-createdtext="@( (DateTimeOffset.FromUnixTimeMilliseconds(user.createdAt * 60).ToLocalTime().ToString("dd/MM/yyyy HH:mm")) )"
+                                    data-createdtext="@( (DateTimeOffset.FromUnixTimeMilliseconds(user.createdAt).ToLocalTime().ToString("dd/MM/yyyy HH:mm")) )"
                                     onclick="showUserInfo(this)">
                                     <td><strong>@user.fullName</strong></td>
                                     <td>@user.phone</td>
                                     <td>@user.email</td>
                                     <td>@user.address</td>
-                                    <td>@(DateTimeOffset.FromUnixTimeMilliseconds(user.createdAt * 60).ToLocalTime().ToString("dd/MM/yyyy HH:mm"))</td>
+                                    <td>@(DateTimeOffset.FromUnixTimeMilliseconds(user.createdAt).ToLocalTime().ToString("dd/MM/yyyy HH:mm"))</td>
                                     <td>
                                         <div class="dropdown">
                                             <button type="button"

@@ -170,14 +170,14 @@
                                     data-amount="@b.amount"
                                     data-payment="@b.payment"
                                     data-paymentmethod="@b.paymentMethod"
-                                    data-createdtext="@( (DateTimeOffset.FromUnixTimeMilliseconds(b.createdAt * 60).ToLocalTime().ToString("dd/MM/yyyy HH:mm")) )"
+                                    data-createdtext="@( (DateTimeOffset.FromUnixTimeMilliseconds(b.createdAt).ToLocalTime().ToString("dd/MM/yyyy HH:mm")) )"
                                     onclick="showBookingInfo(this)">
                                     <td>@b.id</td>
                                     <td><strong>@b.name</strong></td>
                                     <td>@b.phone</td>
                                     <td>@b.address</td>
                                     <td class="text-truncate" style="max-width:220px;">@b.foods</td>
-                                    <td class="text-end">@DateTimeOffset.FromUnixTimeMilliseconds(b.createdAt * 60).ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                                    <td class="text-end">@DateTimeOffset.FromUnixTimeMilliseconds(b.createdAt).ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
                                     <td class="text-end">@b.amount.ToString("N0") VNĐ</td>
                                 </tr>
                             }

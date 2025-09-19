@@ -21,11 +21,6 @@ namespace FoodManagement.Pages.Accounts.User
         [TempData]
         public string? Error { get; set; }
 
-        public void OnGet()
-        {
-            
-        }
-
         public async Task<IActionResult> OnPostAsync()
         {
             if (!ModelState.IsValid)
@@ -47,7 +42,7 @@ namespace FoodManagement.Pages.Accounts.User
             try
             {
                 User.id = Guid.NewGuid().ToString();
-                User.createdAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 60;
+                User.createdAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
                 await _service.CreateAsync(User);
                 Message = "Tạo tài khoản thành công.";
                 return RedirectToPage("./UserPage");
