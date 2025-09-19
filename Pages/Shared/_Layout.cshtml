@@ -98,7 +98,7 @@
                                 </g>
                             </svg>
                         </span>
-                        <span class="app-brand-text demo menu-text fw-bolder ms-2">Sneat</span>
+                        <span class="demo menu-text fw-bolder ms-2">Food Management</span>
                     </a>
 
                     <a href="javascript:void(0);" class="layout-menu-toggle menu-link text-large ms-auto d-block d-xl-none">
@@ -147,14 +147,14 @@
                         </ul>
                     </li>
                     
-                    <li class="menu-item @(Context.Request.Path.StartsWithSegments("/Customers") ? "active" : "")">
+                    @* <li class="menu-item @(Context.Request.Path.StartsWithSegments("/Customers") ? "active" : "")">
                         <a asp-page="/Customers/CustomerPage" class="menu-link">
                             <i class="menu-icon tf-icons bx bx-customize"></i>
                             <div data-i18n="">Quản lý khách hàng</div>
                         </a>
-                    </li>
-                    <li class="menu-item @(Context.Request.Path.StartsWithSegments("/Bills") ? "active" : "")">
-                        <a asp-page="/Bills/BillPage" class="menu-link">
+                    </li> *@
+                    <li class="menu-item @(Context.Request.Path.StartsWithSegments("/Booking") ? "active" : "")">
+                        <a asp-page="/Booking/BookingPage" class="menu-link">
                             <i class="menu-icon tf-icons bx bx-credit-card-alt"></i>
                             <div data-i18n="">Quản lý hóa đơn</div>
                         </a>

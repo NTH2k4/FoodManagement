@@ -16,6 +16,9 @@ builder.Services.AddScoped<IService<FoodDto>, FoodService>();
 builder.Services.AddScoped<IRepository<UserDto>, FirebaseUserRepository>(IConfiguration => new FirebaseUserRepository(IConfiguration.GetRequiredService<IConfiguration>()));
 builder.Services.AddScoped<IService<UserDto>, UserService>();
 
+builder.Services.AddScoped<IRepository<BookingDto>, FirebaseBookingRepository>(IConfiguration => new FirebaseBookingRepository(IConfiguration.GetRequiredService<IConfiguration>()));
+builder.Services.AddScoped<IService<BookingDto>, BookingService>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
