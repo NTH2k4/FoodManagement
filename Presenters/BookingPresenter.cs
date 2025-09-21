@@ -1,14 +1,14 @@
 ﻿using FoodManagement.Contracts;
 using FoodManagement.Models;
 
-namespace FoodManagement.Presenters.Foods
+namespace FoodManagement.Presenters
 {
-    public class UserPresenter : IPresenter<UserDto>
+    public class BookingPresenter : IPresenter<BookingDto>
     {
-        private readonly IService<UserDto> _service;
-        private readonly IListView<UserDto> _view;
+        private readonly IService<BookingDto> _service;
+        private readonly IListView<BookingDto> _view;
 
-        public UserPresenter(IService<UserDto> service, IListView<UserDto> view)
+        public BookingPresenter(IService<BookingDto> service, IListView<BookingDto> view)
         {
             _service = service;
             _view = view;
@@ -18,11 +18,11 @@ namespace FoodManagement.Presenters.Foods
         {
             try
             {
-                var user = await _service.GetByIdAsync(id);
-                if (user != null)
-                    _view.ShowItemDetail(user);
+                var booking = await _service.GetByIdAsync(id);
+                if (booking != null)
+                    _view.ShowItemDetail(booking);
                 else
-                    _view.ShowMessage("Không tìm thấy người dùng.");
+                    _view.ShowMessage("Không tìm thấy đặt hàng.");
             }
             catch (Exception ex)
             {
@@ -34,8 +34,8 @@ namespace FoodManagement.Presenters.Foods
         {
             try
             {
-                var users = await _service.GetAllAsync();
-                _view.ShowItems(users);
+                var bookings = await _service.GetAllAsync();
+                _view.ShowItems(bookings);
             }
             catch (Exception ex)
             {
@@ -43,12 +43,12 @@ namespace FoodManagement.Presenters.Foods
             }
         }
 
-        public async Task CreateItemAsync(UserDto dto)
+        public async Task CreateItemAsync(BookingDto dto)
         {
             try 
             {
                 await _service.CreateAsync(dto);
-                _view.ShowMessage("Thêm người dùng thành công.");
+                _view.ShowMessage("Thêm đặt hàng thành công.");
                 await LoadItemsAsync();
             }
             catch (Exception ex)
@@ -59,10 +59,10 @@ namespace FoodManagement.Presenters.Foods
 
         public async Task DeleteItemAsync(string id)
         {
-            try 
+            try
             {
                 await _service.DeleteAsync(id);
-                _view.ShowMessage("Xóa người dùng thành công.");
+                _view.ShowMessage("Xóa đặt hàng thành công.");
                 await LoadItemsAsync();
             }
             catch (Exception ex)
@@ -71,12 +71,12 @@ namespace FoodManagement.Presenters.Foods
             }
         }
 
-        public async Task UpdateItemAsync(UserDto dto)
+        public async Task UpdateItemAsync(BookingDto dto)
         {
-            try 
+            try
             {
                 await _service.UpdateAsync(dto);
-                _view.ShowMessage("Cập nhật người dùng thành công.");
+                _view.ShowMessage("Cập nhật đặt hàng thành công.");
                 await LoadItemsAsync();
             }
             catch (Exception ex)

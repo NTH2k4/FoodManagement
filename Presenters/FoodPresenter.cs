@@ -1,7 +1,7 @@
 ﻿using FoodManagement.Contracts;
 using FoodManagement.Models;
 
-namespace FoodManagement.Presenters.Foods
+namespace FoodManagement.Presenters
 {
     public class FoodPresenter : IPresenter<FoodDto>
     {
