@@ -48,12 +48,10 @@ namespace FoodManagement.Repositories
 
         public async Task DeleteAsync(string id, CancellationToken ct = default)
         {
-            // id is booking id (as string). Need to find accountId first.
             var all = await GetAllAsync(ct);
             var found = all.FirstOrDefault(b => b.id.ToString() == id);
             if (found == null)
             {
-                // nothing to delete
                 return;
             }
             var child = $"{found.accountId}/{found.id}";
@@ -86,27 +84,19 @@ namespace FoodManagement.Repositories
 
                     foreach (var bookingProp in inner.EnumerateObject())
                     {
-                        try
+                        var bookingJson = bookingProp.Value.GetRawText();
+                        var booking = JsonSerializer.Deserialize<BookingDto>(bookingJson, _jsonOptions);
+                        if (booking != null)
                         {
-                            var bookingJson = bookingProp.Value.GetRawText();
-                            var booking = JsonSerializer.Deserialize<BookingDto>(bookingJson, _jsonOptions);
-                            if (booking != null)
+                            if (booking.id == 0)
                             {
-                                // ensure id and accountId are consistent with keys if missing
-                                if (booking.id == 0)
-                                {
-                                    if (long.TryParse(bookingProp.Name, out var parsedId))
-                                        booking.id = parsedId;
-                                }
-                                if (string.IsNullOrEmpty(booking.accountId))
-                                    booking.accountId = accountId;
-
-                                result.Add(booking);
+                                if (long.TryParse(bookingProp.Name, out var parsedId))
+                                    booking.id = parsedId;
                             }
-                        }
-                        catch
-                        {
-                            // ignore malformed entry
+                            if (string.IsNullOrEmpty(booking.accountId))
+                                booking.accountId = accountId;
+
+                            result.Add(booking);
                         }
                     }
                 }
@@ -121,7 +111,6 @@ namespace FoodManagement.Repositories
 
         public async Task<BookingDto?> GetByIdAsync(string id, CancellationToken ct = default)
         {
-            // id is booking id (string). We don't know accountId, so scan all (could optimize if you store index)
             var all = await GetAllAsync(ct);
             var found = all.FirstOrDefault(b => b.id.ToString() == id);
             return found;
@@ -129,7 +118,6 @@ namespace FoodManagement.Repositories
 
         public async Task UpdateAsync(BookingDto dto, CancellationToken ct = default)
         {
-            // Need accountId to update. If missing, try to find it.
             if (string.IsNullOrEmpty(dto.accountId))
             {
                 var existing = await GetByIdAsync(dto.id.ToString(), ct);
