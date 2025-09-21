@@ -1,6 +1,6 @@
 ﻿using FoodManagement.Contracts;
 using FoodManagement.Models;
-using FoodManagement.Presenters.Foods;
+using FoodManagement.Presenters;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
