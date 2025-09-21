@@ -1,6 +1,6 @@
 ﻿using FoodManagement.Contracts;
 using FoodManagement.Models;
-using FoodManagement.Presenters.Foods;
+using FoodManagement.Presenters;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -47,7 +47,7 @@ namespace FoodManagement.Pages.Booking
             var bookings = _allBookings;
             if (!string.IsNullOrWhiteSpace(SearchTerm))
             {
-                bookings = bookings.Where(b => b.name != null && b.name.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase));
+                bookings = bookings.Where(b => b.name != null && b.name.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase) || b.phone != null && b.phone.Contains(SearchTerm));
             }
             // Sorting
             bookings = (SortColumn, SortOrder) switch
