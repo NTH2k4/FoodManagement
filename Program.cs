@@ -1,4 +1,5 @@
-using FoodManagement.Contracts;
+﻿using FoodManagement.Contracts;
+using FoodManagement.HostedServices;
 using FoodManagement.Models;
 using FoodManagement.Repositories;
 using FoodManagement.Services;
@@ -10,17 +11,26 @@ builder.Services.AddRazorPages();
 
 builder.Services.AddHttpContextAccessor();
 
+// Food
 builder.Services.AddScoped<IRepository<FoodDto>, FirebaseFoodRepository>(IConfiguration => new FirebaseFoodRepository(IConfiguration.GetRequiredService<IConfiguration>()));
 builder.Services.AddScoped<IService<FoodDto>, FoodService>();
 
+// User
 builder.Services.AddScoped<IRepository<UserDto>, FirebaseUserRepository>(IConfiguration => new FirebaseUserRepository(IConfiguration.GetRequiredService<IConfiguration>()));
 builder.Services.AddScoped<IService<UserDto>, UserService>();
 
-builder.Services.AddScoped<IRepository<BookingDto>, FirebaseBookingRepository>(IConfiguration => new FirebaseBookingRepository(IConfiguration.GetRequiredService<IConfiguration>()));
+// Booking
+builder.Services.AddSingleton<FirebaseBookingRepository>();
+builder.Services.AddSingleton<IRepository<BookingDto>>(sp => sp.GetRequiredService<FirebaseBookingRepository>());
+builder.Services.AddSingleton<IRealtimeRepository<BookingDto>>(sp => sp.GetRequiredService<FirebaseBookingRepository>());
 builder.Services.AddScoped<IService<BookingDto>, BookingService>();
+builder.Services.AddHostedService<FirebaseBookingHostedService>();
 
+// Feedback
 builder.Services.AddScoped<IRepository<FeedbackDto>, FirebaseFeedbackRepository>(IConfiguration => new FirebaseFeedbackRepository(IConfiguration.GetRequiredService<IConfiguration>()));
 builder.Services.AddScoped<IService<FeedbackDto>, FeedbackService>();
+
+builder.Services.AddSignalR();
 
 var app = builder.Build();
 
@@ -38,6 +48,8 @@ app.UseStaticFiles();
 app.UseRouting();
 
 app.UseAuthorization();
+
+app.MapHub<FoodManagement.Hubs.BookingHub>("/hubs/bookings");
 
 app.MapRazorPages();
 

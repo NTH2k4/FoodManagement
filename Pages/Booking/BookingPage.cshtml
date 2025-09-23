@@ -197,7 +197,7 @@
         <div class="container-xxl">
             <div class="fixed-footer-inner d-flex justify-content-between align-items-center">
                 <div>
-                    <small class="text-muted">
+                    <small id="bookingSummary" class="text-muted">
                         Hiển thị @startIndex đến @endIndex của @totalItems đơn hàng
                     </small>
                 </div>
@@ -299,6 +299,8 @@
 </div>
 
 @section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+
     <script>
         // Auto-hide alerts after 3s
         setTimeout(() => {
@@ -316,13 +318,136 @@
         });
 
         const serverParams = {
-            pages: '@(Model.Pagination?.CurrentPage ?? 1)',
-            pageSize: '@Model.PageSize',
-            sortColumn: '@(Model.SortColumn ?? "")',
-            sortOrder: '@(Model.SortOrder ?? "")',
-            searchTerm: '@(Model.SearchTerm ?? "")'
+            pages: @(Model.Pagination?.CurrentPage ?? 1),
+            pageSize: @(Model.PageSize),
+            sortColumn: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.SortColumn ?? "")),
+            sortOrder: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.SortOrder ?? "")),
+            searchTerm: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.SearchTerm ?? ""))
         };
 
+        // client-side store (flat bookingId -> booking object)
+        window._bookingRealtimeData = window._bookingRealtimeData || {};
+
+        function formatTimestamp(ms) {
+            if (!ms) return '';
+            const d = new Date(Number(ms));
+            const pad = n => n.toString().padStart(2, '0');
+            return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        }
+
+        function escapeHtml(s) {
+            if (s === null || s === undefined) return '';
+            return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+        }
+
+        function applyFiltersAndRenderBookings() {
+            const dataObj = window._bookingRealtimeData || {};
+            const arr = Object.keys(dataObj).map(k => {
+                const v = dataObj[k] || {};
+                return {
+                    id: v.id ?? k,
+                    accountId: v.accountId || '',
+                    name: v.name || '',
+                    phone: v.phone || '',
+                    address: v.address || '',
+                    foods: v.foods || '',
+                    amount: v.amount || 0,
+                    payment: v.payment || '',
+                    paymentMethod: v.paymentMethod || '',
+                    createdAt: v.createdAt || 0
+                };
+            });
+
+            const search = (document.querySelector('input[name="SearchTerm"]')?.value || serverParams.searchTerm || '').trim().toLowerCase();
+            let filtered = arr;
+            if (search) {
+                filtered = arr.filter(b =>
+                    (b.name && b.name.toLowerCase().includes(search)) ||
+                    (b.phone && b.phone.toLowerCase().includes(search)) ||
+                    (b.address && b.address.toLowerCase().includes(search)) ||
+                    (b.foods && b.foods.toLowerCase().includes(search))
+                );
+            }
+
+            const sortCol = serverParams.sortColumn || '';
+            const sortOrder = (serverParams.sortOrder || 'asc').toLowerCase();
+            filtered.sort((a, b) => {
+                let cmp = 0;
+                switch (sortCol) {
+                    case 'CustomerName': cmp = (a.name || '').localeCompare(b.name || ''); break;
+                    case 'CreatedDate': cmp = (Number(a.createdAt) || 0) - (Number(b.createdAt) || 0); break;
+                    default: cmp = String(a.id || '').localeCompare(String(b.id || '')); break;
+                }
+                return sortOrder === 'asc' ? cmp : -cmp;
+            });
+
+            const pageSize = Number(document.querySelector('select[name="PageSize"]')?.value || serverParams.pageSize || 10);
+            const currentPage = Number(serverParams.pages || 1);
+            const totalItems = filtered.length;
+            const totalPages = pageSize > 0 ? Math.max(1, Math.ceil(totalItems / pageSize)) : 1;
+            const page = Math.min(Math.max(1, currentPage), totalPages);
+
+            const startIndex = totalItems === 0 ? 0 : (page - 1) * pageSize + 1;
+            const endIndex = totalItems === 0 ? 0 : Math.min(page * pageSize, totalItems);
+            const pageItems = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+            renderBookingRows(pageItems);
+            updateBookingSummary(startIndex, endIndex, totalItems);
+        }
+
+        function renderBookingRows(items) {
+            const tbody = document.querySelector('table tbody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            if (!items || items.length === 0) {
+                const tr = document.createElement('tr');
+                const td = document.createElement('td');
+                td.colSpan = 7;
+                td.className = 'text-center text-muted';
+                td.textContent = 'Chưa có đơn hàng nào.';
+                tr.appendChild(td);
+                tbody.appendChild(tr);
+                return;
+            }
+
+            for (const b of items) {
+                const tr = document.createElement('tr');
+                tr.style.cursor = 'pointer';
+                tr.dataset.id = String(b.id || '');
+                tr.dataset.accountid = b.accountId || '';
+                tr.dataset.name = b.name || '';
+                tr.dataset.phone = b.phone || '';
+                tr.dataset.address = b.address || '';
+                tr.dataset.foods = b.foods || '';
+                tr.dataset.amount = b.amount || 0;
+                tr.dataset.payment = b.payment || '';
+                tr.dataset.paymentmethod = b.paymentMethod || '';
+                tr.dataset.createdtext = formatTimestamp(b.createdAt);
+
+                tr.addEventListener('click', () => {
+                    if (tr.closest('.dropdown')) return;
+                    showBookingInfo(tr);
+                });
+
+                tr.innerHTML = `
+                    <td>${escapeHtml(tr.dataset.id)}</td>
+                    <td><strong>${escapeHtml(b.name)}</strong></td>
+                    <td>${escapeHtml(b.phone)}</td>
+                    <td>${escapeHtml(b.address)}</td>
+                    <td class="text-truncate" style="max-width:220px">${escapeHtml(b.foods)}</td>
+                    <td class="text-end">${formatTimestamp(b.createdAt)}</td>
+                    <td class="text-end">${Number(b.amount || 0).toLocaleString()} VNĐ</td>
+                `;
+                tbody.appendChild(tr);
+            }
+        }
+
+        function updateBookingSummary(startIndex, endIndex, totalItems) {
+            const el = document.getElementById('bookingSummary');
+            if (el) el.textContent = `Hiển thị ${startIndex} đến ${endIndex} của ${totalItems} đơn hàng`;
+        }
+
+        // keep existing showBookingInfo behaviour
         function showBookingInfo(el) {
             if (!el) return;
             if (el.closest('.dropdown')) return;
@@ -355,5 +480,34 @@
             const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
             modal.show();
         }
+
+        // ---------- SignalR connection ----------
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl('/hubs/bookings')
+            .withAutomaticReconnect()
+            .build();
+
+        connection.on('BookingsUpdated', (bookings) => {
+            window._bookingRealtimeData = {};
+            try {
+                if (Array.isArray(bookings)) {
+                    bookings.forEach(b => {
+                        const key = (b && (b.id !== undefined && b.id !== null)) ? String(b.id) : (b.bookingId || '');
+                        if (key) window._bookingRealtimeData[key] = b;
+                    });
+                }
+            } catch (ex) {
+                console.error('BookingsUpdated handler error', ex);
+            }
+            applyFiltersAndRenderBookings();
+        });
+
+        connection.start().then(() => {
+            console.info('Connected to BookingHub (SignalR)');
+        }).catch(err => {
+            console.error('SignalR connection error', err);
+        });
+
+        // initial render uses server-rendered rows (they will be replaced when SignalR event arrives)
     </script>
 }
