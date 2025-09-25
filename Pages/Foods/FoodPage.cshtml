@@ -339,46 +339,143 @@
 </div>
 
 @section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
     <script>
-        // Auto-hide alerts after 3s
-        setTimeout(() => {
-            document.querySelectorAll('.alert').forEach(alert => {
-                alert.classList.add('fade');
-                setTimeout(() => alert.remove(), 500);
+        // ==============================
+        // Helpers
+        // ==============================
+        function escapeHtml(unsafe) {
+            if (!unsafe) return '';
+            return unsafe.replace(/[&<"'>]/g, function (m) {
+                switch (m) {
+                    case '&': return '&amp;';
+                    case '<': return '&lt;';
+                    case '>': return '&gt;';
+                    case '"': return '&quot;';
+                    case "'": return '&#039;';
+                    default: return m;
+                }
             });
-        }, 3000);
+        }
 
-        // delete modal handling
-        var deleteModal = document.getElementById('deleteModal');
-        if (deleteModal) {
-            deleteModal.addEventListener('show.bs.modal', function (event) {
-                var button = event.relatedTarget;
-                var foodId = button?.getAttribute('data-id') ?? '';
-                var foodName = button?.getAttribute('data-name') ?? '';
-                var modalFoodName = deleteModal.querySelector('#deleteFoodName');
-                var modalFoodId = deleteModal.querySelector('#deleteFoodId');
-                if (modalFoodName) modalFoodName.textContent = foodName;
-                if (modalFoodId) modalFoodId.value = foodId;
-            });
+        function makeInfoHref(id) {
+            return '@Url.Page("/Foods/InfoFood")' + '?id=' + encodeURIComponent(id);
+        }
 
-            var deleteForm = document.getElementById('deleteForm');
-            if (deleteForm) {
-                deleteForm.addEventListener('submit', function (e) {
-                    var modalFoodId = document.getElementById('deleteFoodId');
-                    var val = modalFoodId ? modalFoodId.value : '';
-                    if (!val || val.trim() === '') {
-                        e.preventDefault();
-                        alert('Không tìm thấy id để xóa. Vui lòng thử lại.');
-                    }
+        // ==============================
+        // Render table rows
+        // ==============================
+        function renderFoodRows(items) {
+            const tbody = document.querySelector('table tbody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            if (!items || items.length === 0) {
+                const tr = document.createElement('tr');
+                const td = document.createElement('td');
+                td.colSpan = 7;
+                td.className = 'text-center text-muted';
+                td.textContent = 'Chưa có món ăn nào';
+                tr.appendChild(td);
+                tbody.appendChild(tr);
+                return;
+            }
+
+            for (const f of items) {
+                const tr = document.createElement('tr');
+                tr.style.cursor = 'pointer';
+
+                // URL InfoFood
+                const infoHref = makeInfoHref(f.id);
+                tr.addEventListener('click', function (e) {
+                    if (e.target.closest('.dropdown')) return; // bỏ qua click trong dropdown
+                    window.location.href = infoHref;
                 });
+
+                const displayPrice = (f.price ?? 0).toLocaleString('vi-VN') + ' VNĐ';
+                const displaySale = (f.sale > 0) ? f.sale + '%' : '-';
+                const popularHtml = f.popular
+                    ? '<span class="badge bg-success">Có</span>'
+                    : '<span class="badge bg-secondary">Không</span>';
+                const imgHtml = f.image
+                    ? `<img src="${escapeHtml(f.image)}" alt="${escapeHtml(f.name)} Banner" class="img-thumbnail img-banner-fixed" />`
+                    : '<span class="text-muted">No Banner</span>';
+
+                tr.innerHTML = `
+                    <td>${escapeHtml(String(f.id ?? ''))}</td>
+                    <td>${imgHtml}</td>
+                    <td><strong>${escapeHtml(f.name ?? '')}</strong></td>
+                    <td>${escapeHtml(displayPrice)}</td>
+                    <td>${escapeHtml(displaySale)}</td>
+                    <td>${popularHtml}</td>
+                    <td>
+                        <div class="dropdown">
+                            <button type="button"
+                                    class="btn p-0 dropdown-toggle hide-arrow"
+                                    data-bs-toggle="dropdown"
+                                    onclick="event.stopPropagation();">
+                                <i class="bx bx-dots-vertical-rounded"></i>
+                            </button>
+                            <div class="dropdown-menu" onclick="event.stopPropagation();">
+                                <a class="dropdown-item"
+                                   href="@Url.Page("./EditFood")?id=${encodeURIComponent(String(f.id ?? ''))}"
+                                   onclick="event.stopPropagation();">
+                                    <i class="bx bx-edit-alt me-1"></i> Sửa
+                                </a>
+                                <button type="button" class="dropdown-item text-danger"
+                                        data-bs-toggle="modal" data-bs-target="#deleteModal"
+                                        data-id="${escapeHtml(String(f.id ?? ''))}"
+                                        data-name="${escapeHtml(f.name ?? '')}"
+                                        onclick="event.stopPropagation();">
+                                    <i class="bx bx-trash me-1"></i> Xóa
+                                </button>
+                            </div>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
             }
         }
 
-        // Prevent row click when clicking dropdown (extra safety)
-        document.querySelectorAll('.dropdown, .dropdown *').forEach(el => {
-            el.addEventListener('click', function (e) {
-                e.stopPropagation();
-            });
+        // ==============================
+        // Modal Delete Binding
+        // ==============================
+        document.addEventListener('DOMContentLoaded', function () {
+            const deleteModal = document.getElementById('deleteModal');
+            if (deleteModal) {
+                deleteModal.addEventListener('show.bs.modal', function (event) {
+                    const button = event.relatedTarget;
+                    if (!button) return;
+                    const id = button.getAttribute('data-id');
+                    const name = button.getAttribute('data-name');
+                    deleteModal.querySelector('#deleteFoodId').value = id || '';
+                    deleteModal.querySelector('#deleteFoodName').textContent = name || '';
+                });
+            }
         });
+
+        // ==============================
+        // SignalR Realtime
+        // ==============================
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/foodHub")
+            .build();
+
+        connection.on("FoodsUpdated", function (items) {
+            renderFoodRows(items);
+            // cập nhật pagination text nếu có
+            const totalItems = items.length;
+            const pageSize = @Model.PageSize;
+            const currentPage = @Model.pages;
+            const startIndex = (currentPage - 1) * pageSize + 1;
+            const endIndex = Math.min(startIndex + pageSize - 1, totalItems);
+
+            const paginationInfo = document.getElementById("pagination-info");
+            if (paginationInfo) {
+                paginationInfo.textContent = `Hiển thị ${startIndex} đến ${endIndex} của ${totalItems} phản hồi`;
+            }
+        });
+
+        connection.start().catch(err => console.error(err.toString()));
     </script>
 }
