@@ -93,6 +93,7 @@ namespace FoodManagement.Pages.Accounts.User
             {
                 "fullname" => asc ? users.OrderBy(u => u.fullName) : users.OrderByDescending(u => u.fullName),
                 "email" => asc ? users.OrderBy(u => u.email) : users.OrderByDescending(u => u.email),
+                "CreatedDate" => asc ? users.OrderBy(u => u.createdAt) : users.OrderByDescending(u => u.createdAt),
                 _ => users
             };
         }

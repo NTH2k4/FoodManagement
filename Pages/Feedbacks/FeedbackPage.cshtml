@@ -192,7 +192,7 @@
         <div class="container-xxl">
             <div class="fixed-footer-inner d-flex justify-content-between align-items-center">
                 <div>
-                    <small class="text-muted">
+                    <small id="feedbackSummary" class="text-muted">
                         Hiển thị @startIndex đến @endIndex của @totalItems phản hồi
                     </small>
                 </div>
@@ -288,6 +288,7 @@
 </div>
 
 @section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
     <script>
         // Auto-hide alerts after 3s
         setTimeout(() => {
@@ -297,21 +298,158 @@
             });
         }, 3000);
 
-        // Prevent row click when clicking interactive elements (safety)
+        // Prevent row click when clicking dropdown etc.
         document.querySelectorAll('.dropdown, .dropdown *').forEach(el => {
-            el.addEventListener('click', function (e) {
-                e.stopPropagation();
-            });
+            el.addEventListener('click', e => e.stopPropagation());
         });
 
         const serverParams = {
-            pages: '@(Model.Pagination?.CurrentPage ?? 1)',
-            pageSize: '@Model.PageSize',
+            pages: Number('@(Model.Pagination?.CurrentPage ?? 1)'),
+            pageSize: Number('@Model.PageSize'),
             sortColumn: '@(Model.SortColumn ?? "")',
             sortOrder: '@(Model.SortOrder ?? "")',
             searchTerm: '@(Model.SearchTerm ?? "")'
         };
 
+        // SignalR connection to feedback hub
+        const feedbackConnection = new signalR.HubConnectionBuilder()
+            .withUrl('/hubs/feedbacks')
+            .withAutomaticReconnect()
+            .build();
+
+        feedbackConnection.on('FeedbacksUpdated', (items) => {
+            // items is an array of FeedbackDto
+            window._feedbackSnapshot = items || [];
+            applyFiltersAndRender();
+        });
+
+        feedbackConnection.start()
+            .then(() => {
+                console.info('Connected to FeedbackHub');
+                // request initial snapshot
+                feedbackConnection.invoke('RequestSnapshot').catch(err => console.error('RequestSnapshot error', err));
+            })
+            .catch(err => console.error('SignalR connect error', err));
+
+        // -------------------------
+        // Utilities (same as booking-style client)
+        // -------------------------
+        function formatTimestamp(ms) {
+            if (!ms) return '';
+            try {
+                const d = new Date(Number(ms));
+                const pad = (n) => n.toString().padStart(2, '0');
+                return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            } catch { return ''; }
+        }
+
+        function escapeHtml(s) {
+            if (!s) return '';
+            return s.toString().replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+        }
+
+        function applyFiltersAndRender() {
+            const data = window._feedbackSnapshot || [];
+            // map => ensure fields present
+            const arr = (Array.isArray(data) ? data : []).map(i => ({
+                id: i.id ?? '',
+                accountId: i.accountId ?? '',
+                name: i.name ?? '',
+                phone: i.phone ?? '',
+                email: i.email ?? '',
+                comment: i.comment ?? '',
+                createdAt: i.createdAt ?? 0
+            }));
+
+            // search
+            const search = (document.querySelector('input[name="SearchTerm"]')?.value || serverParams.searchTerm || '').trim().toLowerCase();
+            let filtered = arr;
+            if (search) {
+                filtered = arr.filter(f =>
+                    (f.name && f.name.toLowerCase().includes(search)) ||
+                    (f.phone && f.phone.toLowerCase().includes(search)) ||
+                    (f.email && f.email.toLowerCase().includes(search)) ||
+                    (f.comment && f.comment.toLowerCase().includes(search))
+                );
+            }
+
+            // sort
+            const sortCol = (serverParams.sortColumn || '').toLowerCase();
+            const sortOrder = (serverParams.sortOrder || 'asc').toLowerCase();
+            filtered.sort((a, b) => {
+                let cmp = 0;
+                switch (sortCol) {
+                    case 'customername': cmp = (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }); break;
+                    case 'createddate': cmp = (Number(a.createdAt) || 0) - (Number(b.createdAt) || 0); break;
+                    default: cmp = (a.id || '').toString().localeCompare((b.id || '').toString(), undefined, { sensitivity: 'base' }); break;
+                }
+                return sortOrder === 'asc' ? cmp : -cmp;
+            });
+
+            // pagination
+            const pageSize = Number(document.querySelector('select[name="PageSize"]')?.value || serverParams.pageSize || 10);
+            const currentPage = Number(serverParams.pages || 1);
+            const totalItems = filtered.length;
+            const totalPages = pageSize > 0 ? Math.max(1, Math.ceil(totalItems / pageSize)) : 1;
+            let page = Math.min(Math.max(1, currentPage), totalPages);
+
+            const startIndex = totalItems === 0 ? 0 : (page - 1) * pageSize + 1;
+            const endIndex = totalItems === 0 ? 0 : Math.min(page * pageSize, totalItems);
+            const pageItems = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+            renderTableRows(pageItems);
+            updateSummary(startIndex, endIndex, totalItems);
+        }
+
+        function renderTableRows(items) {
+            const tbody = document.querySelector('table tbody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            if (!items || items.length === 0) {
+                const tr = document.createElement('tr');
+                const td = document.createElement('td');
+                td.colSpan = 6;
+                td.className = 'text-center text-muted';
+                td.textContent = 'Chưa có phản hồi nào.';
+                tr.appendChild(td);
+                tbody.appendChild(tr);
+                return;
+            }
+
+            for (const f of items) {
+                const tr = document.createElement('tr');
+                tr.style.cursor = 'pointer';
+                tr.dataset.id = f.id;
+                tr.dataset.accountid = f.accountId;
+                tr.dataset.name = f.name;
+                tr.dataset.phone = f.phone;
+                tr.dataset.email = f.email;
+                tr.dataset.comment = f.comment;
+                tr.dataset.createdtext = formatTimestamp(f.createdAt);
+
+                tr.addEventListener('click', () => {
+                    if (tr.closest('.dropdown')) return;
+                    showFeedbackInfo(tr);
+                });
+
+                tr.innerHTML = `
+                    <td>${escapeHtml(f.id)}</td>
+                    <td><strong>${escapeHtml(f.name)}</strong></td>
+                    <td>${escapeHtml(f.phone)}</td>
+                    <td>${escapeHtml(f.email)}</td>
+                    <td class="text-truncate" style="max-width:320px">${escapeHtml(f.comment)}</td>
+                    <td class="text-end">${formatTimestamp(f.createdAt)}</td>
+                `;
+                tbody.appendChild(tr);
+            }
+        }
+
+        function updateSummary(startIndex, endIndex, totalItems) {
+            const el = document.querySelector('#feedbackSummary') || document.querySelector('.text-muted[data-role="feedbackSummary"]');
+            if (el) el.textContent = `Hiển thị ${startIndex} đến ${endIndex} của ${totalItems} phản hồi`;
+        }
+
+        // keep existing showFeedbackInfo function (modal)
         function showFeedbackInfo(el) {
             if (!el) return;
             if (el.closest('.dropdown')) return;

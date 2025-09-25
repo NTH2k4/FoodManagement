@@ -147,7 +147,18 @@
                                 </a>
                             </th>
                             <th>Địa chỉ</th>
-                            <th>Ngày tạo</th>
+                            <th>
+                                <a asp-page="./UserPage"
+                                   asp-route-SortColumn="CreatedDate"
+                                   asp-route-SortOrder="@GetSortOrder("CreatedDate")"
+                                   asp-route-pages="@Model.Pagination?.CurrentPage"
+                                   asp-route-PageSize="@Model.PageSize"
+                                   asp-route-SearchTerm="@Model.SearchTerm"
+                                   class="@GetSortClass("CreatedDate")"
+                                   style="text-decoration:none;">
+                                    Ngày tạo @Html.Raw(GetSortIcon("CreatedDate"))
+                                </a>
+                            </th>
                             <th style="width:60px;"></th>
                         </tr>
                     </thead>
@@ -213,7 +224,7 @@
         <div class="container-xxl">
             <div class="fixed-footer-inner d-flex justify-content-between align-items-center">
                 <div>
-                    <small class="text-muted">
+                    <small id="userSummary" class="text-muted">
                         Hiển thị @startIndex đến @endIndex của @totalItems tài khoản
                     </small>
                 </div>
@@ -328,54 +339,298 @@
 </div>
 
 @section Scripts {
+    <!-- SignalR: dùng CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+
     <script>
-        setTimeout(() => {
+        // -------------------------
+        // Helpers
+        // -------------------------
+        function formatTimestamp(ms) {
+            if (ms === null || ms === undefined || ms === '') return '';
+            if (typeof ms === 'string' && /\D/.test(ms)) {
+                return ms;
+            }
+            const n = Number(ms);
+            if (Number.isNaN(n) || !isFinite(n)) return '';
+            const d = new Date(n);
+            if (isNaN(d.getTime())) return '';
+            const pad = n => n.toString().padStart(2, '0');
+            return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        }
+
+        function escapeHtml(s) {
+            if (s === null || s === undefined) return '';
+            return String(s)
+                .replaceAll('&','&amp;')
+                .replaceAll('<','&lt;')
+                .replaceAll('>','&gt;')
+                .replaceAll('"','&quot;')
+                .replaceAll("'", '&#39;');
+        }
+
+        function hideAlertsOnce() {
             document.querySelectorAll('.alert').forEach(alert => {
                 alert.classList.add('fade');
-                setTimeout(() => alert.remove(), 500);
+                setTimeout(() => {
+                    if (alert && alert.parentNode) alert.parentNode.removeChild(alert);
+                }, 500);
             });
-        }, 3000);
+        }
+        setTimeout(hideAlertsOnce, 3000);
 
-        var deleteModalEl = document.getElementById('deleteModal');
-        if (deleteModalEl) {
+        // -------------------------
+        // Delete modal wiring
+        // -------------------------
+        (function initDeleteModal() {
+            const deleteModalEl = document.getElementById('deleteModal');
+            if (!deleteModalEl) return;
+
             deleteModalEl.addEventListener('show.bs.modal', function (event) {
-                var button = event.relatedTarget;
+                const button = event.relatedTarget;
                 if (!button) return;
-                var userId = button.getAttribute('data-id') ?? '';
-                var userName = button.getAttribute('data-name') ?? '';
-                var modalUserName = deleteModalEl.querySelector('#deleteUserName');
-                var modalUserId = deleteModalEl.querySelector('#deleteUserId');
-                if (modalUserName) modalUserName.textContent = userName;
-                if (modalUserId) modalUserId.value = userId;
+                const userId = button.getAttribute('data-id') ?? '';
+                const userName = button.getAttribute('data-name') ?? '';
+                const nameNode = deleteModalEl.querySelector('#deleteUserName');
+                const idNode = deleteModalEl.querySelector('#deleteUserId');
+                if (nameNode) nameNode.textContent = userName;
+                if (idNode) idNode.value = userId;
             });
 
-            var deleteForm = document.getElementById('deleteForm');
+            const deleteForm = document.getElementById('deleteForm');
             if (deleteForm) {
                 deleteForm.addEventListener('submit', function (e) {
-                    var modalUserId = document.getElementById('deleteUserId');
-                    var val = modalUserId ? modalUserId.value : '';
+                    const idEl = document.getElementById('deleteUserId');
+                    const val = idEl ? idEl.value : '';
                     if (!val || val.trim() === '') {
                         e.preventDefault();
                         alert('Không tìm thấy id để xóa. Vui lòng thử lại.');
                     }
                 });
             }
-        }
+        })();
 
-        document.querySelectorAll('.dropdown, .dropdown *').forEach(el => {
-            el.addEventListener('click', function (e) {
-                e.stopPropagation();
-            });
-        });
-
+        // -------------------------
+        // Server params
+        // -------------------------
         const serverParams = {
-            pages: '@(Model.Pagination?.CurrentPage ?? 1)',
-            pageSize: '@Model.PageSize',
+            pages: Number('@(Model.Pagination?.CurrentPage ?? 1)'),
+            pageSize: Number('@Model.PageSize'),
             sortColumn: '@(Model.SortColumn ?? "")',
             sortOrder: '@(Model.SortOrder ?? "")',
             searchTerm: '@(Model.SearchTerm ?? "")'
         };
 
+        // -------------------------
+        // In-memory store + order array
+        // -------------------------
+        window._usersRealtimeData = window._usersRealtimeData || {};
+        window._usersRealtimeOrder = window._usersRealtimeOrder || [];
+
+        // -------------------------
+        // SignalR connection + handler
+        // -------------------------
+        const userConnection = new signalR.HubConnectionBuilder()
+            .withUrl('/hubs/users')
+            .withAutomaticReconnect()
+            .build();
+
+        userConnection.onclose(err => {
+            console.warn('SignalR connection closed', err);
+        });
+
+        userConnection.on('UsersUpdated', function(items) {
+            try {
+                const map = {};
+                const order = [];
+
+                if (!items) {
+                    window._usersRealtimeData = {};
+                    window._usersRealtimeOrder = [];
+                    applyFiltersAndRenderUsers();
+                    return;
+                }
+
+                if (Array.isArray(items)) {
+                    for (const u of items) {
+                        if (!u) continue;
+                        const key = (u.id ?? (u.id?.toString?.())) ?? null;
+                        if (!key) continue;
+                        map[key] = u;
+                        order.push(key); // preserve array order from server
+                    }
+                } else if (typeof items === 'object') {
+                    // If server sent object map, use Object.keys order (insertion order)
+                    for (const k of Object.keys(items)) {
+                        map[k] = items[k];
+                        order.push(k);
+                    }
+                }
+
+                window._usersRealtimeData = map;
+                window._usersRealtimeOrder = order;
+                applyFiltersAndRenderUsers();
+            } catch (e) {
+                console.error('UsersUpdated handler error', e);
+            }
+        });
+
+        userConnection.start().catch(err => {
+            console.error('SignalR start failed', err);
+        });
+
+        // -------------------------
+        // Rendering pipeline
+        // -------------------------
+        function applyFiltersAndRenderUsers() {
+            const dataObj = window._usersRealtimeData || {};
+            const order = window._usersRealtimeOrder && window._usersRealtimeOrder.length ? window._usersRealtimeOrder : Object.keys(dataObj || {});
+            // build array in preserved order (server order)
+            const baseArr = order.map(k => {
+                const v = dataObj[k] || {};
+                let createdAtVal = v.createdAt ?? v.created_at ?? v.createdTimestamp ?? null;
+                if (typeof createdAtVal === 'string' && /^\d+$/.test(createdAtVal)) createdAtVal = Number(createdAtVal);
+                const createdTextVal = v.createdText ?? v.createdtext ?? null;
+                return {
+                    id: k,
+                    fullName: v.fullName ?? v.fullname ?? '',
+                    phone: v.phone ?? '',
+                    email: v.email ?? '',
+                    address: v.address ?? '',
+                    password: v.password ?? '',
+                    createdAt: createdAtVal,
+                    createdText: createdTextVal
+                };
+            });
+
+            const search = (document.querySelector('input[name="SearchTerm"]')?.value || serverParams.searchTerm || '').trim().toLowerCase();
+            let filtered = baseArr;
+            if (search) {
+                filtered = baseArr.filter(u =>
+                    (u.fullName && u.fullName.toLowerCase().includes(search)) ||
+                    (u.email && u.email.toLowerCase().includes(search)) ||
+                    (u.phone && u.phone.toLowerCase().includes(search))
+                );
+            }
+
+            const sortCol = (serverParams.sortColumn || '').toString();
+            const sortOrder = (serverParams.sortOrder || 'asc').toLowerCase();
+
+            // If sort column specified, perform sorting; else keep server order (baseArr preserves it)
+            if (sortCol) {
+                filtered.sort((a,b) => {
+                    let cmp = 0;
+                    switch (sortCol) {
+                        case 'fullname':
+                            cmp = (a.fullName||'').localeCompare(b.fullName||'');
+                            break;
+                        case 'email':
+                            cmp = (a.email||'').localeCompare(b.email||'');
+                            break;
+                        case 'CreatedDate':
+                            // numeric compare (use 0 if missing)
+                            const an = Number(a.createdAt || 0);
+                            const bn = Number(b.createdAt || 0);
+                            cmp = an === bn ? 0 : (an < bn ? -1 : 1);
+                            break;
+                        default:
+                            cmp = (a.id||'').toString().localeCompare((b.id||'').toString());
+                            break;
+                    }
+                    return sortOrder === 'asc' ? cmp : -cmp;
+                });
+            }
+
+            const pageSize = Number(document.querySelector('select[name="PageSize"]')?.value || serverParams.pageSize || 10);
+            const currentPage = Number(serverParams.pages || 1);
+            const totalItems = filtered.length;
+            const totalPages = pageSize > 0 ? Math.max(1, Math.ceil(totalItems / pageSize)) : 1;
+            const page = Math.min(Math.max(1, currentPage), totalPages);
+
+            const startIndex = totalItems === 0 ? 0 : (page - 1) * pageSize + 1;
+            const endIndex = totalItems === 0 ? 0 : Math.min(page * pageSize, totalItems);
+            const pageItems = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+            renderUserRows(pageItems);
+            updateUserSummary(startIndex, endIndex, totalItems);
+
+            setTimeout(hideAlertsOnce, 3000);
+        }
+
+        function renderUserRows(items) {
+            const tbody = document.querySelector('table tbody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            if (!items || items.length === 0) {
+                const tr = document.createElement('tr');
+                const td = document.createElement('td');
+                td.colSpan = 6;
+                td.className = 'text-center text-muted';
+                td.textContent = 'Không có tài khoản nào.';
+                tr.appendChild(td);
+                tbody.appendChild(tr);
+                return;
+            }
+
+            for (const u of items) {
+                const tr = document.createElement('tr');
+                tr.style.cursor = 'pointer';
+                tr.dataset.id = u.id || '';
+                tr.dataset.fullname = u.fullName || '';
+                tr.dataset.phone = u.phone || '';
+                tr.dataset.email = u.email || '';
+                tr.dataset.address = u.address || '';
+                tr.dataset.password = u.password || '';
+                const displayCreated = u.createdText ? u.createdText : formatTimestamp(u.createdAt);
+                tr.dataset.createdtext = displayCreated;
+
+                tr.addEventListener('click', function (e) {
+                    if (e.target.closest('.dropdown')) return;
+                    showUserInfo(this);
+                });
+
+                tr.innerHTML = `
+                    <td><strong>${escapeHtml(u.fullName)}</strong></td>
+                    <td>${escapeHtml(u.phone)}</td>
+                    <td>${escapeHtml(u.email)}</td>
+                    <td>${escapeHtml(u.address)}</td>
+                    <td>${escapeHtml(displayCreated)}</td>
+                    <td>
+                        <div class="dropdown">
+                            <button type="button"
+                                    class="btn p-0 dropdown-toggle hide-arrow"
+                                    data-bs-toggle="dropdown"
+                                    data-bs-boundary="viewport"
+                                    onclick="event.stopPropagation();">
+                                <i class="bx bx-dots-vertical-rounded"></i>
+                            </button>
+                            <div class="dropdown-menu" onclick="event.stopPropagation();">
+                                <a class="dropdown-item" href="/Accounts/User/EditUser?id=${encodeURIComponent(u.id)}" onclick="event.stopPropagation();">
+                                    <i class="bx bx-edit-alt me-1"></i> Sửa
+                                </a>
+                                <button type="button" class="dropdown-item text-danger"
+                                        data-bs-toggle="modal" data-bs-target="#deleteModal"
+                                        data-id="${escapeHtml(u.id)}" data-name="${escapeHtml(u.fullName)}"
+                                        onclick="event.stopPropagation();">
+                                    <i class="bx bx-trash me-1"></i> Xóa
+                                </button>
+                            </div>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            }
+        }
+
+        function updateUserSummary(startIndex, endIndex, totalItems) {
+            const el = document.querySelector('.fixed-footer small.text-muted');
+            if (el) el.textContent = `Hiển thị ${startIndex} đến ${endIndex} của ${totalItems} tài khoản`;
+        }
+
+        // -------------------------
+        // showUserInfo (modal)
+        // -------------------------
         function showUserInfo(el) {
             if (!el) return;
             if (el.closest('.dropdown')) return;
@@ -391,8 +646,9 @@
 
             const fill = (idSel, value) => {
                 const node = document.getElementById(idSel);
-                if (node) node.textContent = value;
+                if (node) node.textContent = value ?? '';
             };
+
             fill('ui-fullname', name);
             fill('ui-phone', phone);
             fill('ui-email', email);
@@ -411,23 +667,24 @@
                 if (serverParams.sortOrder) params.set('SortOrder', serverParams.sortOrder);
                 if (serverParams.searchTerm) params.set('SearchTerm', serverParams.searchTerm);
                 editBtn.href = editBase + (params.toString() ? ('?' + params.toString()) : '');
-                editBtn.onclick = function (ev) { ev.stopPropagation(); };
+                editBtn.onclick = ev => ev.stopPropagation();
             }
 
             const infoDel = document.getElementById('userInfoDeleteBtn');
             if (infoDel) {
                 const newDel = infoDel.cloneNode(true);
                 infoDel.parentNode.replaceChild(newDel, infoDel);
-
                 newDel.addEventListener('click', function (ev) {
                     ev.stopPropagation();
                     const userModalEl = document.getElementById('userInfoModal');
                     const userModal = bootstrap.Modal.getInstance(userModalEl);
                     if (userModal) userModal.hide();
+
                     const delNameEl = document.getElementById('deleteUserName');
                     const delIdEl = document.getElementById('deleteUserId');
                     if (delNameEl) delNameEl.textContent = name;
                     if (delIdEl) delIdEl.value = id;
+
                     const dEl = document.getElementById('deleteModal');
                     const dModal = bootstrap.Modal.getOrCreateInstance(dEl);
                     dModal.show();
@@ -438,5 +695,35 @@
             const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
             modal.show();
         }
+
+        // -------------------------
+        // seed from server-rendered rows
+        // -------------------------
+        (function seedFromServerRows() {
+            try {
+                const rows = document.querySelectorAll('table tbody tr[data-id]');
+                if (!rows || rows.length === 0) return;
+                const map = window._usersRealtimeData || {};
+                const order = window._usersRealtimeOrder || [];
+                rows.forEach(r => {
+                    const id = r.dataset.id;
+                    if (!id) return;
+                    map[id] = {
+                        id: id,
+                        fullName: r.dataset.fullname || '',
+                        phone: r.dataset.phone || '',
+                        email: r.dataset.email || '',
+                        address: r.dataset.address || '',
+                        password: r.dataset.password || '',
+                        createdAt: null,
+                        createdText: r.dataset.createdtext || ''
+                    };
+                    order.push(id);
+                });
+                window._usersRealtimeData = map;
+                window._usersRealtimeOrder = order;
+                setTimeout(applyFiltersAndRenderUsers, 200);
+            } catch (e) { /* ignore */ }
+        })();
     </script>
 }
