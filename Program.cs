@@ -60,6 +60,8 @@ app.UseAuthorization();
 
 app.MapHub<FoodManagement.Hubs.BookingHub>("/hubs/bookings");
 app.MapHub<FoodManagement.Hubs.FeedbackHub>("/hubs/feedbacks");
+app.MapHub<FoodManagement.Hubs.FoodHub>("/hubs/Foods");
+app.MapHub<FoodManagement.Hubs.UserHub>("/hubs/Users");
 
 app.MapRazorPages();
 
