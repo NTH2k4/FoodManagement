@@ -317,22 +317,27 @@
             });
         });
 
+        // Keep server params consistent with FeedbackPage approach
         const serverParams = {
-            pages: @(Model.Pagination?.CurrentPage ?? 1),
-            pageSize: @(Model.PageSize),
-            sortColumn: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.SortColumn ?? "")),
-            sortOrder: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.SortOrder ?? "")),
-            searchTerm: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.SearchTerm ?? ""))
+            pages: Number('@(Model.Pagination?.CurrentPage ?? 1)'),
+            pageSize: Number('@Model.PageSize'),
+            sortColumn: '@(Model.SortColumn ?? "")',
+            sortOrder: '@(Model.SortOrder ?? "")',
+            searchTerm: '@(Model.SearchTerm ?? "")'
         };
 
-        // client-side store (flat bookingId -> booking object)
-        window._bookingRealtimeData = window._bookingRealtimeData || {};
+        // We'll store snapshot as an array (same pattern as FeedbackPage)
+        window._bookingSnapshot = window._bookingSnapshot || [];
 
         function formatTimestamp(ms) {
             if (!ms) return '';
-            const d = new Date(Number(ms));
-            const pad = n => n.toString().padStart(2, '0');
-            return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            try {
+                const d = new Date(Number(ms));
+                const pad = n => n.toString().padStart(2, '0');
+                return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            } catch {
+                return '';
+            }
         }
 
         function escapeHtml(s) {
@@ -341,23 +346,21 @@
         }
 
         function applyFiltersAndRenderBookings() {
-            const dataObj = window._bookingRealtimeData || {};
-            const arr = Object.keys(dataObj).map(k => {
-                const v = dataObj[k] || {};
-                return {
-                    id: v.id ?? k,
-                    accountId: v.accountId || '',
-                    name: v.name || '',
-                    phone: v.phone || '',
-                    address: v.address || '',
-                    foods: v.foods || '',
-                    amount: v.amount || 0,
-                    payment: v.payment || '',
-                    paymentMethod: v.paymentMethod || '',
-                    createdAt: v.createdAt || 0
-                };
-            });
+            const data = window._bookingSnapshot || [];
+            const arr = (Array.isArray(data) ? data : []).map(v => ({
+                id: v.id ?? '',
+                accountId: v.accountId ?? '',
+                name: v.name ?? '',
+                phone: v.phone ?? '',
+                address: v.address ?? '',
+                foods: v.foods ?? '',
+                amount: v.amount ?? 0,
+                payment: v.payment ?? '',
+                paymentMethod: v.paymentMethod ?? '',
+                createdAt: v.createdAt ?? 0
+            }));
 
+            // search
             const search = (document.querySelector('input[name="SearchTerm"]')?.value || serverParams.searchTerm || '').trim().toLowerCase();
             let filtered = arr;
             if (search) {
@@ -369,18 +372,26 @@
                 );
             }
 
-            const sortCol = serverParams.sortColumn || '';
+            // sort (normalize server-provided column -> lowercase compare like FeedbackPage)
+            const sortCol = (serverParams.sortColumn || '').toLowerCase();
             const sortOrder = (serverParams.sortOrder || 'asc').toLowerCase();
             filtered.sort((a, b) => {
                 let cmp = 0;
                 switch (sortCol) {
-                    case 'CustomerName': cmp = (a.name || '').localeCompare(b.name || ''); break;
-                    case 'CreatedDate': cmp = (Number(a.createdAt) || 0) - (Number(b.createdAt) || 0); break;
-                    default: cmp = String(a.id || '').localeCompare(String(b.id || '')); break;
+                    case 'customername':
+                        cmp = (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' });
+                        break;
+                    case 'createddate':
+                        cmp = (Number(a.createdAt) || 0) - (Number(b.createdAt) || 0);
+                        break;
+                    default:
+                        cmp = (String(a.id || '')).localeCompare(String(b.id || ''), undefined, { sensitivity: 'base' });
+                        break;
                 }
                 return sortOrder === 'asc' ? cmp : -cmp;
             });
 
+            // pagination
             const pageSize = Number(document.querySelector('select[name="PageSize"]')?.value || serverParams.pageSize || 10);
             const currentPage = Number(serverParams.pages || 1);
             const totalItems = filtered.length;
@@ -413,15 +424,15 @@
             for (const b of items) {
                 const tr = document.createElement('tr');
                 tr.style.cursor = 'pointer';
-                tr.dataset.id = String(b.id || '');
-                tr.dataset.accountid = b.accountId || '';
-                tr.dataset.name = b.name || '';
-                tr.dataset.phone = b.phone || '';
-                tr.dataset.address = b.address || '';
-                tr.dataset.foods = b.foods || '';
-                tr.dataset.amount = b.amount || 0;
-                tr.dataset.payment = b.payment || '';
-                tr.dataset.paymentmethod = b.paymentMethod || '';
+                tr.dataset.id = String(b.id ?? '');
+                tr.dataset.accountid = b.accountId ?? '';
+                tr.dataset.name = b.name ?? '';
+                tr.dataset.phone = b.phone ?? '';
+                tr.dataset.address = b.address ?? '';
+                tr.dataset.foods = b.foods ?? '';
+                tr.dataset.amount = b.amount ?? 0;
+                tr.dataset.payment = b.payment ?? '';
+                tr.dataset.paymentmethod = b.paymentMethod ?? '';
                 tr.dataset.createdtext = formatTimestamp(b.createdAt);
 
                 tr.addEventListener('click', () => {
@@ -447,7 +458,7 @@
             if (el) el.textContent = `Hiển thị ${startIndex} đến ${endIndex} của ${totalItems} đơn hàng`;
         }
 
-        // keep existing showBookingInfo behaviour
+        // showBookingInfo unchanged behaviour
         function showBookingInfo(el) {
             if (!el) return;
             if (el.closest('.dropdown')) return;
@@ -488,16 +499,12 @@
             .build();
 
         connection.on('BookingsUpdated', (bookings) => {
-            window._bookingRealtimeData = {};
             try {
-                if (Array.isArray(bookings)) {
-                    bookings.forEach(b => {
-                        const key = (b && (b.id !== undefined && b.id !== null)) ? String(b.id) : (b.bookingId || '');
-                        if (key) window._bookingRealtimeData[key] = b;
-                    });
-                }
+                // keep array snapshot (like FeedbackPage)
+                window._bookingSnapshot = Array.isArray(bookings) ? bookings : (bookings ? Object.values(bookings) : []);
             } catch (ex) {
                 console.error('BookingsUpdated handler error', ex);
+                window._bookingSnapshot = [];
             }
             applyFiltersAndRenderBookings();
         });

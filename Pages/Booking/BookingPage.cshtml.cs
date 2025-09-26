@@ -71,15 +71,6 @@ namespace FoodManagement.Pages.Booking
                 TotalItems = totalItems
             };
             Bookings = bookings.Skip((Pages - 1) * PageSize).Take(PageSize).ToList();
-
-            if (!string.IsNullOrEmpty(SortColumn) && !string.IsNullOrEmpty(SortOrder))
-            {
-                SortOrder = SortOrder == "asc" ? "desc" : "asc";
-            }
-            else
-            {
-                SortOrder = "asc";
-            }
         }
 
         // ===============================
