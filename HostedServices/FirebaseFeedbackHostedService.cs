@@ -13,15 +13,17 @@ namespace FoodManagement.HostedServices
         private readonly IHubContext<FeedbackHub> _hub;
         private readonly ILogger<FirebaseFeedbackHostedService> _logger;
         private EventHandler<RealtimeUpdatedEventArgs<FeedbackDto>>? _handler;
+        private HashSet<string> _lastIds = new(StringComparer.Ordinal);
+        private readonly object _sync = new();
 
         public FirebaseFeedbackHostedService(
             IRealtimeRepository<FeedbackDto> repo,
             IHubContext<FeedbackHub> hub,
             ILogger<FirebaseFeedbackHostedService> logger)
         {
-            _repo = repo;
-            _hub = hub;
-            _logger = logger;
+            _repo = repo ?? throw new ArgumentNullException(nameof(repo));
+            _hub = hub ?? throw new ArgumentNullException(nameof(hub));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
@@ -30,8 +32,12 @@ namespace FoodManagement.HostedServices
 
             try
             {
-                var snapshot = await _repo.GetSnapshotAsync(cancellationToken).ConfigureAwait(false);
-                await _hub.Clients.All.SendAsync("FeedbacksUpdated", snapshot, cancellationToken).ConfigureAwait(false);
+                var snapshot = await _repo.GetSnapshotAsync(cancellationToken);
+                var ids = GetIds(snapshot);
+                lock (_sync) { _lastIds = ids; }
+
+                _logger.LogInformation("[FeedbackHostedService] Initial snapshot: {count} feedback(s)", ids.Count);
+                await _hub.Clients.All.SendAsync("FeedbacksUpdated", snapshot, cancellationToken);
             }
             catch (Exception ex)
             {
@@ -45,8 +51,30 @@ namespace FoodManagement.HostedServices
                     try
                     {
                         var items = args?.Items ?? Enumerable.Empty<FeedbackDto>();
-                        _logger.LogInformation("[FeedbackHostedService] Pushing {count} feedbacks to clients", items.Count());
-                        await _hub.Clients.All.SendAsync("FeedbacksUpdated", items).ConfigureAwait(false);
+                        var newIds = GetIds(items);
+
+                        bool changed;
+                        int added = 0, removed = 0;
+                        lock (_sync)
+                        {
+                            changed = !_lastIds.SetEquals(newIds);
+                            if (changed)
+                            {
+                                added = newIds.Except(_lastIds).Count();
+                                removed = _lastIds.Except(newIds).Count();
+                                _lastIds = newIds;
+                            }
+                        }
+
+                        if (!changed)
+                        {
+                            // nothing changed -> no log, no push
+                            return;
+                        }
+
+                        _logger.LogInformation("[FeedbackHostedService] Data changed: {added} added, {removed} removed -> pushing {count} feedback(s)",
+                            added, removed, newIds.Count);
+                        await _hub.Clients.All.SendAsync("FeedbacksUpdated", items);
                     }
                     catch (Exception ex)
                     {
@@ -59,7 +87,7 @@ namespace FoodManagement.HostedServices
 
             try
             {
-                await _repo.StartListeningAsync(cancellationToken).ConfigureAwait(false);
+                await _repo.StartListeningAsync(cancellationToken);
             }
             catch (Exception ex)
             {
@@ -92,6 +120,21 @@ namespace FoodManagement.HostedServices
             {
                 _logger.LogWarning(ex, "[FeedbackHostedService] StopListeningAsync error");
             }
+        }
+
+        private static HashSet<string> GetIds(IEnumerable<FeedbackDto> items)
+        {
+            var set = new HashSet<string>(StringComparer.Ordinal);
+            if (items == null) return set;
+            foreach (var it in items)
+            {
+                if (it == null) continue;
+                var prop = it.GetType().GetProperty("id");
+                var val = prop?.GetValue(it);
+                var s = val?.ToString();
+                if (!string.IsNullOrEmpty(s)) set.Add(s);
+            }
+            return set;
         }
     }
 }

@@ -174,7 +174,7 @@ namespace FoodManagement.Repositories
                 {
                     if (_store.Count > 0)
                     {
-                        _logger.LogWarning("[Repo] Received root=null from Firebase SSE but local store has {count} items. Ignoring transient null.", _store.Count);
+                        //_logger.LogWarning("[Repo] Received root=null from Firebase SSE but local store has {count} items. Ignoring transient null.", _store.Count);
                         return;
                     }
 

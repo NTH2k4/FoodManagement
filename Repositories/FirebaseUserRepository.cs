@@ -329,7 +329,6 @@ namespace FoodManagement.Repositories
                         return;
                     }
 
-                    // evt.RawData is JSON representation of the user object (or a patch)
                     try
                     {
                         var dto = JsonSerializer.Deserialize<UserDto>(evt.RawData, _jsonOptions);
@@ -341,7 +340,6 @@ namespace FoodManagement.Repositories
                             return;
                         }
 
-                        // if not a full object, attempt to parse as patch (object of children) -> reconstruct
                         using var doc = JsonDocument.Parse($"{{ \"{userId}\": {evt.RawData} }}");
                         ApplyMergePatch(doc.RootElement);
                         RealtimeUpdated?.Invoke(this, new RealtimeUpdatedEventArgs<UserDto>(_store.Values.ToList()));
@@ -364,7 +362,7 @@ namespace FoodManagement.Repositories
             {
                 if (_store.Count > 0)
                 {
-                    _logger.LogWarning("Received root=null but local store not empty - ignoring transient null");
+                    //_logger.LogWarning("Received root=null but local store not empty - ignoring transient null");
                     return;
                 }
 

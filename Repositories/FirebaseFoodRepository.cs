@@ -171,7 +171,7 @@ namespace FoodManagement.Repositories
                 // If we already have data, ignore possible transient null
                 if (_store.Count > 0)
                 {
-                    _logger.LogWarning("[FoodRepo] Received root=null but local store has {count}; ignoring transient null.", _store.Count);
+                    //_logger.LogWarning("[FoodRepo] Received root=null but local store has {count}; ignoring transient null.", _store.Count);
                     return;
                 }
                 lock (_storeLock) { _store.Clear(); }

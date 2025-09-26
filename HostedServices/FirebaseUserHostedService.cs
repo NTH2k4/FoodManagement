@@ -12,7 +12,9 @@ namespace FoodManagement.HostedServices
         private readonly IRealtimeRepository<UserDto> _repo;
         private readonly IHubContext<UserHub> _hub;
         private readonly ILogger<FirebaseUserHostedService> _logger;
-        private bool _subscribed = false;
+        private EventHandler<RealtimeUpdatedEventArgs<UserDto>>? _handler;
+        private HashSet<string> _lastIds = new(StringComparer.Ordinal);
+        private readonly object _sync = new();
 
         public FirebaseUserHostedService(
             IRealtimeRepository<UserDto> repo,
@@ -31,20 +33,53 @@ namespace FoodManagement.HostedServices
             try
             {
                 var snapshot = await _repo.GetSnapshotAsync(cancellationToken);
-                _logger.LogInformation("[UserHostedService] Sending initial snapshot (count={count})", snapshot?.Count() ?? 0);
+                var ids = GetIds(snapshot);
+                lock (_sync) { _lastIds = ids; }
+
+                _logger.LogInformation("[UserHostedService] Initial snapshot: {count} user(s)", ids.Count);
                 await _hub.Clients.All.SendAsync("UsersUpdated", snapshot, cancellationToken);
             }
-            catch (OperationCanceledException) { /* shutdown */ }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[UserHostedService] Error sending initial snapshot");
+                _logger.LogError(ex, "[UserHostedService] initial snapshot error");
             }
 
-            if (!_subscribed)
+            _handler = (s, e) =>
             {
-                _repo.RealtimeUpdated += Repo_RealtimeUpdated;
-                _subscribed = true;
-            }
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        var items = e?.Items ?? Enumerable.Empty<UserDto>();
+                        var newIds = GetIds(items);
+
+                        bool changed;
+                        int added = 0, removed = 0;
+                        lock (_sync)
+                        {
+                            changed = !_lastIds.SetEquals(newIds);
+                            if (changed)
+                            {
+                                added = newIds.Except(_lastIds).Count();
+                                removed = _lastIds.Except(newIds).Count();
+                                _lastIds = newIds;
+                            }
+                        }
+
+                        if (!changed) return;
+
+                        _logger.LogInformation("[UserHostedService] Data changed: {added} added, {removed} removed -> pushing {count} user(s)",
+                            added, removed, newIds.Count);
+                        await _hub.Clients.All.SendAsync("UsersUpdated", items);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "[UserHostedService] Error while pushing UsersUpdated");
+                    }
+                });
+            };
+
+            _repo.RealtimeUpdated += _handler;
 
             try
             {
@@ -56,32 +91,20 @@ namespace FoodManagement.HostedServices
             }
         }
 
-        private async void Repo_RealtimeUpdated(object? sender, RealtimeUpdatedEventArgs<UserDto> e)
-        {
-            try
-            {
-                var items = e?.Items ?? Enumerable.Empty<UserDto>();
-                _logger.LogDebug("[UserHostedService] RealtimeUpdated -> pushing {count} users", items.Count());
-                await _hub.Clients.All.SendAsync("UsersUpdated", items);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[UserHostedService] Error while pushing UsersUpdated");
-            }
-        }
-
         public async Task StopAsync(CancellationToken cancellationToken)
         {
             _logger.LogInformation("[UserHostedService] Stopping.");
-
-            if (_subscribed)
+            if (_handler != null)
             {
                 try
                 {
-                    _repo.RealtimeUpdated -= Repo_RealtimeUpdated;
+                    _repo.RealtimeUpdated -= _handler;
                 }
-                catch { /* ignore */ }
-                _subscribed = false;
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "[UserHostedService] Error while unsubscribing handler");
+                }
+                _handler = null;
             }
 
             try
@@ -96,12 +119,27 @@ namespace FoodManagement.HostedServices
 
         public void Dispose()
         {
-            if (_subscribed)
+            if (_handler != null)
             {
-                try { _repo.RealtimeUpdated -= Repo_RealtimeUpdated; }
+                try { _repo.RealtimeUpdated -= _handler; }
                 catch { }
-                _subscribed = false;
+                _handler = null;
             }
+        }
+
+        private static HashSet<string> GetIds(IEnumerable<UserDto> items)
+        {
+            var set = new HashSet<string>(StringComparer.Ordinal);
+            if (items == null) return set;
+            foreach (var it in items)
+            {
+                if (it == null) continue;
+                var prop = it.GetType().GetProperty("id");
+                var val = prop?.GetValue(it);
+                var s = val?.ToString();
+                if (!string.IsNullOrEmpty(s)) set.Add(s);
+            }
+            return set;
         }
     }
 }

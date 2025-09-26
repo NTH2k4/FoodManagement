@@ -105,7 +105,6 @@ namespace FoodManagement.Repositories
                 var path = (evt.Path ?? "/").Trim();
                 if (string.IsNullOrEmpty(path)) path = "/";
 
-                // Full snapshot
                 if (path == "/")
                 {
                     UpdateFullTree(evt.RawData);
@@ -113,7 +112,6 @@ namespace FoodManagement.Repositories
                     return;
                 }
 
-                // path like "/<feedbackId>" or deeper; feedback in your DB is top-level keyed by id
                 var segs = path.Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries);
                 if (segs.Length >= 1)
                 {
@@ -149,7 +147,7 @@ namespace FoodManagement.Repositories
                 {
                     if (_store.Count > 0)
                     {
-                        _logger.LogWarning("[FeedbackRepo] Received root=null from Firebase SSE but local store has {count} items. Ignoring transient null.", _store.Count);
+                        //_logger.LogWarning("[FeedbackRepo] Received root=null from Firebase SSE but local store has {count} items. Ignoring transient null.", _store.Count);
                         return;
                     }
                     lock (_storeLock) { _store.Clear(); }
