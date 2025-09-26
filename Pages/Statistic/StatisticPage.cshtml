@@ -1,4 +1,238 @@
 ﻿@page
 @model FoodManagement.Pages.Statistic.StatisticPageModel
 @{
+    ViewData["Title"] = "Thống kê doanh thu";
+}
+
+<div class="container py-4">
+    @if (!string.IsNullOrEmpty(Model.Error))
+    {
+        <div class="alert alert-danger">@Model.Error</div>
+    }
+
+    <div class="row gy-3">
+        <div class="col-12 col-lg-6">
+            <div class="card shadow-sm">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <strong>Doanh thu - 30 ngày gần nhất</strong>
+                </div>
+                <div class="card-body">
+                    <canvas id="chartDaily" width="400" height="240"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-6">
+            <div class="card shadow-sm">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <strong>Doanh thu theo tháng (năm @DateTime.UtcNow.Year)</strong>
+                </div>
+                <div class="card-body">
+                    <canvas id="chartMonthly" width="400" height="240"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <script>
+        const initialDaily = @Html.Raw(Model.DailyJson ?? "[]");
+        const initialMonthly = @Html.Raw(Model.MonthlyJson ?? "[]");
+
+        function formatDateLabel(isoDateStr) {
+            const d = new Date(isoDateStr);
+            if (isNaN(d)) return isoDateStr;
+            return d.toLocaleDateString();
+        }
+
+        function buildDailyDataset(arr) {
+            const labels = arr.map(r => formatDateLabel(r.period));
+            const data = arr.map(r => Number(r.total ?? 0));
+            return { labels, data };
+        }
+
+        function buildMonthlyDataset(arr) {
+            const labels = arr.map(r => {
+                const d = new Date(r.period);
+                if (isNaN(d)) return r.period;
+                return d.toLocaleString([], { month: 'short', year: 'numeric' });
+            });
+            const data = arr.map(r => Number(r.total ?? 0));
+            return { labels, data };
+        }
+
+        const elDaily = document.getElementById('chartDaily');
+        const ctxDaily = elDaily ? elDaily.getContext('2d') : null;
+        if (!ctxDaily) {
+            console.error('chartDaily element not found');
+        }
+
+        const ctxMonthly = document.getElementById('chartMonthly').getContext('2d');
+
+        const dailyData = buildDailyDataset(initialDaily);
+        const monthlyData = buildMonthlyDataset(initialMonthly);
+
+        const chartDaily = new Chart(ctxDaily, {
+            type: 'line',
+            data: {
+                labels: dailyData.labels,
+                datasets: [{
+                    label: 'Doanh thu (VNĐ)',
+                    data: dailyData.data,
+                    tension: 0.25,
+                    fill: true,
+                    borderWidth: 2,
+                    pointRadius: 3
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { mode: 'index' }
+                },
+                scales: {
+                    y: { beginAtZero: true, ticks: { callback: v => v.toLocaleString('vi-VN') } }
+                }
+            }
+        });
+
+        const chartMonthly = new Chart(ctxMonthly, {
+            type: 'bar',
+            data: {
+                labels: monthlyData.labels,
+                datasets: [{
+                    label: 'Doanh thu (VNĐ)',
+                    data: monthlyData.data,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: ctx => ctx.formattedValue.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',') + ' VNĐ' } }
+                },
+                scales: {
+                    y: { beginAtZero: true, ticks: { callback: v => v.toLocaleString('vi-VN') } }
+                }
+            }
+        });
+
+        // ---------------------------
+        // Real-time updates via SignalR
+        // ---------------------------
+        const last30DaysSet = new Set(initialDaily.map(d => (new Date(d.period)).toISOString().slice(0,10)));
+        const currentYear = (new Date()).getUTCFullYear();
+
+        function computeAggregatesFromBookings(bookings) {
+            const byDay = new Map(); // key = yyyy-mm-dd
+            const byMonth = new Map(); // key = yyyy-mm
+
+            for (const b of bookings || []) {
+                let created = null;
+                if (b.createdAt) {
+                    const n = Number(b.createdAt);
+                    if (!Number.isNaN(n)) created = new Date(n);
+                } else if (b.createdText) {
+                    created = new Date(b.createdText);
+                } else if (b.created) {
+                    created = new Date(b.created);
+                } else if (b.timestamp) {
+                    const n = Number(b.timestamp);
+                    if (!Number.isNaN(n)) created = new Date(n);
+                }
+                if (!created || isNaN(created)) continue;
+
+                let amount = 0;
+                if (typeof b.total !== 'undefined') amount = Number(b.total) || 0;
+                else if (typeof b.amount !== 'undefined') amount = Number(b.amount) || 0;
+                else if (typeof b.price !== 'undefined') amount = Number(b.price) || 0;
+                else if (typeof b.totalPrice !== 'undefined') amount = Number(b.totalPrice) || 0;
+
+                const dayKey = created.toISOString().slice(0,10); // yyyy-mm-dd
+                const monthKey = created.getUTCFullYear() + '-' + String(created.getUTCMonth()+1).padStart(2,'0');
+
+                if (last30DaysSet.has(dayKey) || true) { 
+                    const prevD = byDay.get(dayKey) ?? { total: 0, count: 0 };
+                    prevD.total += amount;
+                    prevD.count += 1;
+                    byDay.set(dayKey, prevD);
+                }
+
+                if (created.getUTCFullYear() === currentYear) {
+                    const prevM = byMonth.get(monthKey) ?? { total: 0, count: 0 };
+                    prevM.total += amount;
+                    prevM.count += 1;
+                    byMonth.set(monthKey, prevM);
+                }
+            }
+
+            const dailyArr = [];
+            const today = new Date();
+            today.setUTCHours(0,0,0,0);
+            const dates = [];
+            for (let i = 29; i >= 0; i--) {
+                const d = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+                d.setUTCDate(d.getUTCDate() - i);
+                dates.push(d);
+            }
+            for (const d of dates) {
+                const key = d.toISOString().slice(0,10);
+                const v = byDay.get(key);
+                dailyArr.push({
+                    period: d.toISOString(),
+                    total: v ? v.total : 0,
+                    count: v ? v.count : 0
+                });
+            }
+
+            const monthlyArr = [];
+            for (let m = 1; m <= 12; m++) {
+                const key = `${currentYear}-${String(m).padStart(2,'0')}`;
+                const v = byMonth.get(key);
+                monthlyArr.push({
+                    period: new Date(Date.UTC(currentYear, m-1, 1)).toISOString(),
+                    total: v ? v.total : 0,
+                    count: v ? v.count : 0
+                });
+            }
+
+            return { dailyArr, monthlyArr };
+        }
+
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl('/hubs/bookings')
+            .withAutomaticReconnect()
+            .build();
+
+        connection.on('BookingsUpdated', function(items) {
+            try {
+                const { dailyArr, monthlyArr } = computeAggregatesFromBookings(items);
+
+                const dailyLabels = dailyArr.map(x => (new Date(x.period)).toLocaleDateString());
+                const dailyData = dailyArr.map(x => Number(x.total || 0));
+                chartDaily.data.labels = dailyLabels;
+                chartDaily.data.datasets[0].data = dailyData;
+                chartDaily.update();
+
+                const monLabels = monthlyArr.map(x => {
+                    const d = new Date(x.period);
+                    return d.toLocaleString([], { month: 'short', year: 'numeric' });
+                });
+                const monData = monthlyArr.map(x => Number(x.total || 0));
+                chartMonthly.data.labels = monLabels;
+                chartMonthly.data.datasets[0].data = monData;
+                chartMonthly.update();
+            } catch (e) {
+                console.error('Error processing BookingsUpdated', e);
+            }
+        });
+
+        connection.start().catch(err => console.error(err));
+    </script>
 }

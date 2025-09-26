@@ -39,6 +39,12 @@ builder.Services.AddSingleton<IRealtimeRepository<FeedbackDto>>(sp => sp.GetRequ
 builder.Services.AddScoped<IService<FeedbackDto>, FeedbackService>();
 builder.Services.AddHostedService<FirebaseFeedbackHostedService>();
 
+// Statistic
+builder.Services.AddScoped<IStatisticsService, StatisticsService>();
+
+// Dashboard
+builder.Services.AddSingleton<IDashboardService, DashboardService>();
+
 builder.Services.AddSignalR();
 
 var app = builder.Build();
