@@ -38,6 +38,63 @@ namespace FoodManagement.Repositories
             _sseListener.OnMessage += HandleSseEvent;
         }
 
+        private static string NormalizePhone(string? phone)
+        {
+            if (string.IsNullOrWhiteSpace(phone)) return string.Empty;
+            var s = phone.Trim();
+            var sb = new System.Text.StringBuilder();
+            foreach (var ch in s)
+            {
+                if (char.IsDigit(ch) || ch == '+') sb.Append(ch);
+            }
+            return sb.ToString();
+        }
+
+        private async Task<string?> FindUserIdByPhoneAsync(string phone, CancellationToken ct = default)
+        {
+            if (string.IsNullOrEmpty(phone)) return null;
+
+            var norm = NormalizePhone(phone);
+            if (string.IsNullOrEmpty(norm)) return null;
+
+            foreach (var kv in _store)
+            {
+                var u = kv.Value;
+                if (u == null) continue;
+                if (NormalizePhone(u.phone) == norm) return u.id;
+            }
+
+            var baseUrl = $"{_databaseUrl}/{UserNode}.json";
+            var qOrderBy = "orderBy=" + Uri.EscapeDataString("\"phone\"");
+            var qEqualTo = "equalTo=" + Uri.EscapeDataString("\"" + norm + "\"");
+            var url = $"{baseUrl}?{qOrderBy}&{qEqualTo}";
+            if (!string.IsNullOrEmpty(_authToken)) url += $"&auth={Uri.EscapeDataString(_authToken)}";
+
+            try
+            {
+                var resp = await _httpClient.GetAsync(url, ct);
+                if (!resp.IsSuccessStatusCode) return null;
+                var json = await resp.Content.ReadAsStringAsync(ct);
+                if (string.IsNullOrWhiteSpace(json) || json == "null") return null;
+
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+                if (root.ValueKind != JsonValueKind.Object) return null;
+
+                foreach (var prop in root.EnumerateObject())
+                {
+                    var maybeId = prop.Name;
+                    return maybeId;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "FindUserIdByPhoneAsync fallback query failed");
+            }
+
+            return null;
+        }
+
         private string BuildUrl(string? child = null)
         {
             var url = $"{_databaseUrl}/{UserNode}";
@@ -76,7 +133,18 @@ namespace FoodManagement.Repositories
         public async Task CreateAsync(UserDto dto, CancellationToken ct = default)
         {
             if (dto == null) throw new ArgumentNullException(nameof(dto));
+
+            var normPhone = NormalizePhone(dto.phone);
+            var existing = await FindUserIdByPhoneAsync(normPhone, ct);
+            if (existing != null)
+            {
+                throw new InvalidOperationException($"Số điện thoại đang được sử dụng bởi tài khoản khác.");
+            }
+
             if (string.IsNullOrEmpty(dto.id)) dto.id = Guid.NewGuid().ToString();
+
+            // ensure dto.phone stored normalized (optional)
+            dto.phone = normPhone;
 
             var resp = await _httpClient.PutAsJsonAsync(BuildUrl(dto.id), dto, ct);
             resp.EnsureSuccessStatusCode();
@@ -85,7 +153,15 @@ namespace FoodManagement.Repositories
         public async Task UpdateAsync(UserDto dto, CancellationToken ct = default)
         {
             if (dto == null) throw new ArgumentNullException(nameof(dto));
-            if (string.IsNullOrEmpty(dto.id)) throw new ArgumentException("id is required for update", nameof(dto));
+
+            var normPhone = NormalizePhone(dto.phone);
+            var existing = await FindUserIdByPhoneAsync(normPhone, ct);
+            if (existing != null && existing != dto.id)
+            {
+                throw new InvalidOperationException($"Số điện thoại đang được sử dụng bởi tài khoản khác.");
+            }
+
+            dto.phone = normPhone;
 
             var resp = await _httpClient.PutAsJsonAsync(BuildUrl(dto.id), dto, ct);
             resp.EnsureSuccessStatusCode();

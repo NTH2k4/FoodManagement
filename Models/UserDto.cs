@@ -13,6 +13,7 @@ namespace FoodManagement.Models
         public string fullName { get; set; } = default!;
 
         [Required(ErrorMessage = "Số điện thoại là bắt buộc.")]
+        [MinLength(10, ErrorMessage = "Số điện thoại không hợp lệ.")]
         public string phone { get; set; } = default!;
 
         [Required(ErrorMessage = "Email là bắt buộc.")]

@@ -41,7 +41,14 @@
 
                             <div class="col-md-6">
                                 <label class="form-label">Số điện thoại *</label>
-                                <input asp-for="User.phone" class="form-control" required />
+                                <input asp-for="User.phone"
+                                       class="form-control"
+                                       required
+                                       type="text"
+                                       maxlength="10"
+                                       pattern="\d*"
+                                       inputmode="numeric"
+                                       oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10);" />
                                 <span asp-validation-for="User.phone" class="text-danger small"></span>
                             </div>
 

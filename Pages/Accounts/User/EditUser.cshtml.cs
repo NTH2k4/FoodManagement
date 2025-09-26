@@ -107,6 +107,11 @@ namespace FoodManagement.Pages.Accounts.User
                     SearchTerm = SearchTerm
                 });
             }
+            catch (InvalidOperationException ex)
+            {
+                ModelState.AddModelError("User.phone", ex.Message);
+                return Page();
+            }
             catch (Exception ex)
             {
                 Error = $"Lỗi khi lưu: {ex.Message}";

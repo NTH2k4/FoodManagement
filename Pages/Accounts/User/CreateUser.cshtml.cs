@@ -25,17 +25,6 @@ namespace FoodManagement.Pages.Accounts.User
         {
             if (!ModelState.IsValid)
             {
-                //foreach (var key in ModelState.Keys)
-                //{
-                //    var state = ModelState[key];
-                //    if (state != null && state.Errors.Count > 0)
-                //    {
-                //        foreach (var error in state.Errors)
-                //        {
-                //            Console.WriteLine($"ModelState error for {key}: {error.ErrorMessage}");
-                //        }
-                //    }
-                //}
                 Error = "Vui lòng kiểm tra lại thông tin.";
                 return Page();
             }
@@ -46,6 +35,11 @@ namespace FoodManagement.Pages.Accounts.User
                 await _service.CreateAsync(User);
                 Message = "Tạo tài khoản thành công.";
                 return RedirectToPage("./UserPage");
+            }
+            catch (InvalidOperationException ex)
+            {
+                ModelState.AddModelError("User.phone", ex.Message);
+                return Page();
             }
             catch (Exception ex)
             {
