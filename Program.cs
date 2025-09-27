@@ -2,12 +2,19 @@
 using FoodManagement.HostedServices;
 using FoodManagement.Models;
 using FoodManagement.Repositories;
+using FoodManagement.Security;
 using FoodManagement.Services;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddRazorPages();
+builder.Services.AddRazorPages(options =>
+{
+    options.Conventions.AuthorizeFolder("/"); // yêu cầu Authenticate cho toàn bộ pages
+    options.Conventions.AllowAnonymousToPage("/Login/Login"); // cho phép trang Login truy cập công khai
+});
 
 builder.Services.AddHttpContextAccessor();
 
@@ -45,6 +52,30 @@ builder.Services.AddScoped<IStatisticsService, StatisticsService>();
 // Dashboard
 builder.Services.AddSingleton<IDashboardService, DashboardService>();
 
+// Login
+builder.Services.AddScoped<IAdminRepository, FirebaseAdminRepository>();
+builder.Services.AddScoped<IPasswordHasher, Pbkdf2PasswordHasher>();
+builder.Services.AddScoped<IAuthService, CookieAuthService>();
+builder.Services.AddScoped<IAuditService, FirebaseAuditService>();
+
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.LoginPath = "/Login/Login";
+        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+        options.SlidingExpiration = true;
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Strict;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    });
+
+builder.Services.AddAuthorization(options =>
+{
+    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+});
+
 builder.Services.AddSignalR();
 
 var app = builder.Build();
@@ -62,7 +93,15 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
+app.UseAuthentication();
+
 app.UseAuthorization();
+
+app.MapGet("/", context =>
+{
+    context.Response.Redirect("/Login/Login");
+    return Task.CompletedTask;
+});
 
 app.MapHub<FoodManagement.Hubs.BookingHub>("/hubs/bookings");
 app.MapHub<FoodManagement.Hubs.FeedbackHub>("/hubs/feedbacks");

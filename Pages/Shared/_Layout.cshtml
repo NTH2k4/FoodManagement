@@ -110,8 +110,8 @@
 
                 <ul class="menu-inner py-1">
                     <!-- Dashboard -->
-                    <li class="menu-item @(Context.Request.Path == "/" ? "active" : "")">
-                        <a asp-page="/index" class="menu-link">
+                    <li class="menu-item @(Context.Request.Path.StartsWithSegments("/Dashboard") ? "active" : "")">
+                        <a asp-page="/Dashboard/index" class="menu-link">
                             <i class="menu-icon tf-icons bx bx-home-circle"></i>
                             <div data-i18n="Analytics">Dashboard</div>
                         </a>
@@ -146,13 +146,6 @@
 							</li>
                         </ul>
                     </li>
-                    
-                    @* <li class="menu-item @(Context.Request.Path.StartsWithSegments("/Customers") ? "active" : "")">
-                        <a asp-page="/Customers/CustomerPage" class="menu-link">
-                            <i class="menu-icon tf-icons bx bx-customize"></i>
-                            <div data-i18n="">Quản lý khách hàng</div>
-                        </a>
-                    </li> *@
                     <li class="menu-item @(Context.Request.Path.StartsWithSegments("/Booking") ? "active" : "")">
                         <a asp-page="/Booking/BookingPage" class="menu-link">
                             <i class="menu-icon tf-icons bx bx-credit-card-alt"></i>

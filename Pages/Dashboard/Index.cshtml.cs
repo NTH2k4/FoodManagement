@@ -3,7 +3,7 @@ using FoodManagement.Models;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using System.Text.Json;
 
-namespace FoodManagement.Pages
+namespace FoodManagement.Pages.Dashboard
 {
     public class IndexModel : PageModel
     {
