@@ -7,7 +7,6 @@ using System.Text.Json;
 
 namespace FoodManagement.Repositories
 {
-    // Repository implements both classic IRepository<T> and your IRealtimeRepository<T>
     public class FirebaseUserRepository : IRepository<UserDto>, IRealtimeRepository<UserDto>, IDisposable
     {
         private readonly HttpClient _httpClient;
@@ -109,7 +108,6 @@ namespace FoodManagement.Repositories
         // -------------------------
         public async Task<IEnumerable<UserDto>> GetAllAsync(CancellationToken ct = default)
         {
-            // Prefer in-memory store if populated
             if (_store.Count > 0) return _store.Values.ToList();
             return await GetSnapshotAsync(ct);
         }
@@ -143,7 +141,6 @@ namespace FoodManagement.Repositories
 
             if (string.IsNullOrEmpty(dto.id)) dto.id = Guid.NewGuid().ToString();
 
-            // ensure dto.phone stored normalized (optional)
             dto.phone = normPhone;
 
             var resp = await _httpClient.PutAsJsonAsync(BuildUrl(dto.id), dto, ct);
@@ -195,7 +192,6 @@ namespace FoodManagement.Repositories
                 }
             }, _cts.Token);
 
-            // watchdog: fallback snapshot when no pushes
             _ = Task.Run(async () =>
             {
                 while (!_cts.Token.IsCancellationRequested)
@@ -421,10 +417,7 @@ namespace FoodManagement.Repositories
                         continue;
                     }
                 }
-                catch
-                {
-                    // ignore parse errors for patch entries
-                }
+                catch {}
             }
         }
 
