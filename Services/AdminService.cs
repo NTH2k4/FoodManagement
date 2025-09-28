@@ -12,6 +12,5 @@ namespace FoodManagement.Services
         public Task<IEnumerable<AdminDto>> GetAllAsync() => _repo.GetAllAsync();
         public Task<AdminDto?> GetByIdAsync(string id) => _repo.GetByIdAsync(id);
         public Task UpdateAsync(AdminDto dto) => _repo.UpdateAsync(dto);
-        public Task<AdminDto?> GetByUsernameAsync(string username, CancellationToken ct = default) => _repo.GetByUsernameAsync(username, ct);
     }
 }
