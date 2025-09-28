@@ -1,0 +1,806 @@
+﻿@page
+@model FoodManagement.Pages.Accounts.Admin.AdminPageModel
+@{
+    ViewData["Title"] = "Quản lý tài khoản admin";
+    int startIndex = 0;
+    int endIndex = 0;
+    var totalItems = Model.Pagination?.TotalItems ?? 0;
+    var current = Model.Pagination?.CurrentPage ?? 1;
+    var size = Model.Pagination?.PageSize ?? Model.PageSize;
+    if (totalItems == 0)
+    {
+        startIndex = 0;
+        endIndex = 0;
+    }
+    else
+    {
+        startIndex = (current - 1) * size + 1;
+        endIndex = Math.Min(current * size, totalItems);
+    }
+    string GetSortOrder(string column)
+    {
+        if (Model.SortColumn == column)
+            return Model.SortOrder == "asc" ? "desc" : "asc";
+        return "asc";
+    }
+    string GetSortIcon(string column)
+    {
+        if (Model.SortColumn != column) return "";
+        return Model.SortOrder == "asc"
+            ? "<i class=\"bx bx-up-arrow-alt text-success\"></i>"
+            : "<i class=\"bx bx-down-arrow-alt text-danger\"></i>";
+    }
+    string GetSortClass(string column)
+    {
+        return Model.SortColumn == column ? "text-primary fw-bold" : "";
+    }
+}
+
+<link rel="stylesheet" href="/assets/vendor/css/ListPage.css" />
+
+<div class="flex-grow-1 container-p-y page-content-padding">
+    <div class="page-topbar">
+        <div class="d-flex align-items-center justify-content-between">
+            <div>
+                <a class="btn btn-primary d-inline-flex align-items-center" asp-page="./CreateAdmin">
+                    <i class="bx bx-plus me-1"></i> Thêm admin
+                </a>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <form method="get" class="d-flex align-items-center" style="min-width:320px;">
+                    <input type="text"
+                           name="SearchTerm"
+                           value="@Model.SearchTerm"
+                           class="form-control form-control-sm"
+                           placeholder="Tìm kiếm tên/username/email/phone..." />
+                    <input type="hidden" name="pages" value="@Model.Pagination?.CurrentPage" />
+                    <input type="hidden" name="PageSize" value="@Model.PageSize" />
+                    <input type="hidden" name="SortColumn" value="@Model.SortColumn" />
+                    <input type="hidden" name="SortOrder" value="@Model.SortOrder" />
+                    <button type="submit" class="btn btn-outline-secondary btn-sm ms-2">Tìm</button>
+                </form>
+                <button class="btn btn-outline-secondary btn-sm" type="button" title="Settings">
+                    <i class="bx bx-cog"></i>
+                </button>
+                <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#filterPanel" aria-expanded="false" aria-controls="filterPanel" title="Filter">
+                    <i class="bx bx-filter"></i>
+                </button>
+            </div>
+        </div>
+        <div class="collapse" id="filterPanel">
+            <div class="card card-body">
+                <form method="get" class="row g-2">
+                    <div class="col-md-4">
+                        <input type="text" name="SearchTerm" value="@Model.SearchTerm" class="form-control" placeholder="Tên, username, email hoặc phone..." />
+                    </div>
+                    <div class="col-md-2">
+                        <select name="SortColumn" class="form-select">
+                            <option value="">Sắp xếp theo</option>
+                            <option value="fullname" selected="@(Model.SortColumn == "fullname" ? "selected" : null)">Họ tên</option>
+                            <option value="firstName" selected="@(Model.SortColumn == "firstName" ? "selected" : null)">Tên (firstName)</option>
+                            <option value="lastName" selected="@(Model.SortColumn == "lastName" ? "selected" : null)">Họ (lastName)</option>
+                            <option value="username" selected="@(Model.SortColumn == "username" ? "selected" : null)">Tài khoản</option>
+                            <option value="email" selected="@(Model.SortColumn == "email" ? "selected" : null)">Email</option>
+                            <option value="phone" selected="@(Model.SortColumn == "phone" ? "selected" : null)">Số điện thoại</option>
+                            <option value="role" selected="@(Model.SortColumn == "role" ? "selected" : null)">Quyền</option>
+                            <option value="LastLogin" selected="@(Model.SortColumn == "LastLogin" ? "selected" : null)">Lần đăng nhập</option>
+                            <option value="isActive" selected="@(Model.SortColumn == "isActive" ? "selected" : null)">Hoạt động</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select name="SortOrder" class="form-select">
+                            <option value="asc" selected="@(Model.SortOrder == "asc" ? "selected" : null)">Tăng dần</option>
+                            <option value="desc" selected="@(Model.SortOrder == "desc" ? "selected" : null)">Giảm dần</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select name="PageSize" class="form-select">
+                            <option value="5" selected="@(Model.PageSize == 5)">5</option>
+                            <option value="10" selected="@(Model.PageSize == 10)">10</option>
+                            <option value="25" selected="@(Model.PageSize == 25)">25</option>
+                            <option value="50" selected="@(Model.PageSize == 50)">50</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex">
+                        <button type="submit" class="btn btn-primary me-2 p-2">Áp dụng</button>
+                        <a class="btn btn-outline-secondary p-2" asp-page="./AdminPage">Đặt lại</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="card rounded-0">
+        <div class="card-body">
+            @if (!string.IsNullOrEmpty(Model.Error))
+            {
+                <div id="alert-error" class="alert alert-danger">@Model.Error</div>
+            }
+            else if (!string.IsNullOrEmpty(Model.Message))
+            {
+                <div id="alert-success" class="alert alert-success">@Model.Message</div>
+            }
+            <div class="table-responsive text-nowrap">
+                <table class="table table-bordered align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>
+                                <a asp-page="./AdminPage"
+                                   asp-route-SortColumn="fullname"
+                                   asp-route-SortOrder="@GetSortOrder("fullname")"
+                                   asp-route-pages="@Model.Pagination?.CurrentPage"
+                                   asp-route-PageSize="@Model.PageSize"
+                                   asp-route-SearchTerm="@Model.SearchTerm"
+                                   class="@GetSortClass("fullname")"
+                                   style="text-decoration:none;">
+                                    Họ tên @Html.Raw(GetSortIcon("fullname"))
+                                </a>
+                            </th>
+                            <th>
+                                <a asp-page="./AdminPage"
+                                   asp-route-SortColumn="username"
+                                   asp-route-SortOrder="@GetSortOrder("username")"
+                                   asp-route-pages="@Model.Pagination?.CurrentPage"
+                                   asp-route-PageSize="@Model.PageSize"
+                                   asp-route-SearchTerm="@Model.SearchTerm"
+                                   class="@GetSortClass("username")"
+                                   style="text-decoration:none;">
+                                    Tài khoản @Html.Raw(GetSortIcon("username"))
+                                </a>
+                            </th>
+                            <th>
+                                <a asp-page="./AdminPage"
+                                   asp-route-SortColumn="role"
+                                   asp-route-SortOrder="@GetSortOrder("role")"
+                                   asp-route-pages="@Model.Pagination?.CurrentPage"
+                                   asp-route-PageSize="@Model.PageSize"
+                                   asp-route-SearchTerm="@Model.SearchTerm"
+                                   class="@GetSortClass("role")"
+                                   style="text-decoration:none;">
+                                    Quyền @Html.Raw(GetSortIcon("role"))
+                                </a>
+                            </th>
+                            <th>
+                                <a asp-page="./AdminPage"
+                                   asp-route-SortColumn="phone"
+                                   asp-route-SortOrder="@GetSortOrder("phone")"
+                                   asp-route-pages="@Model.Pagination?.CurrentPage"
+                                   asp-route-PageSize="@Model.PageSize"
+                                   asp-route-SearchTerm="@Model.SearchTerm"
+                                   class="@GetSortClass("phone")"
+                                   style="text-decoration:none;">
+                                    Số điện thoại @Html.Raw(GetSortIcon("phone"))
+                                </a>
+                            </th>
+                            <th>Email</th>
+                            <th>
+                                <a asp-page="./AdminPage"
+                                   asp-route-SortColumn="CreatedDate"
+                                   asp-route-SortOrder="@GetSortOrder("CreatedDate")"
+                                   asp-route-pages="@Model.Pagination?.CurrentPage"
+                                   asp-route-PageSize="@Model.PageSize"
+                                   asp-route-SearchTerm="@Model.SearchTerm"
+                                   class="@GetSortClass("CreatedDate")"
+                                   style="text-decoration:none;">
+                                    Ngày tạo @Html.Raw(GetSortIcon("CreatedDate"))
+                                </a>
+                            </th>
+                            <th style="width:60px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Admins.Any())
+                        {
+                            @foreach (var admin in Model.Admins)
+                            {
+                                <tr style="cursor:pointer;"
+                                    data-id="@admin.id"
+                                    data-username="@admin.username"
+                                    data-firstname="@admin.firstName"
+                                    data-lastname="@admin.lastName"
+                                    data-phone="@admin.phone"
+                                    data-email="@admin.email"
+                                    data-role="@admin.role"
+                                    data-address="@admin.address"
+                                    data-avatar="@admin.avatar"
+                                    data-lastlogin="@((admin.LastLoginAt == default) ? "" : admin.LastLoginAt.ToLocalTime().ToString("o"))"
+                                    data-lockout="@((admin.LockoutEnd == default) ? "" : admin.LockoutEnd.ToLocalTime().ToString("o"))"
+                                    data-active="@admin.isActive"
+                                    data-failed="@admin.failedLoginAttempts"
+                                    data-createdtext="@(admin.createdAt == default ? "" : admin.createdAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm"))"
+                                    onclick="showAdminInfo(this)">
+                                    <td><strong>@((admin.lastName + " " + admin.firstName).Trim())</strong></td>
+                                    <td>@admin.username</td>
+                                    <td>@admin.role</td>
+                                    <td>@admin.phone</td>
+                                    <td>@admin.email</td>
+                                    <td>@(admin.createdAt == default ? "" : admin.createdAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm"))</td>
+                                    <td>
+                                        <div class="dropdown">
+                                            <button type="button"
+                                                    class="btn p-0 dropdown-toggle hide-arrow"
+                                                    data-bs-toggle="dropdown"
+                                                    data-bs-boundary="viewport"
+                                                    onclick="event.stopPropagation();">
+                                                <i class="bx bx-dots-vertical-rounded"></i>
+                                            </button>
+                                            <div class="dropdown-menu" onclick="event.stopPropagation();">
+                                                <a class="dropdown-item"
+                                                   href="@Url.Page("./EditAdmin", new { id = admin.id })"
+                                                   onclick="event.stopPropagation();">
+                                                    <i class="bx bx-edit-alt me-1"></i> Sửa
+                                                </a>
+                                                <button type="button" class="dropdown-item text-danger"
+                                                        data-bs-toggle="modal" data-bs-target="#deleteModal"
+                                                        data-id="@admin.id" data-name="@((admin.lastName + " " + admin.firstName).Trim())"
+                                                        onclick="event.stopPropagation();">
+                                                    <i class="bx bx-trash me-1"></i> Xóa
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="7" class="text-center text-muted">Không có admin nào.</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="fixed-footer" aria-hidden="false">
+        <div class="container-xxl">
+            <div class="fixed-footer-inner d-flex justify-content-between align-items-center">
+                <div>
+                    <small id="adminSummary" class="text-muted">
+                        Hiển thị @startIndex đến @endIndex của @totalItems admin
+                    </small>
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                    <div class="d-flex align-items-center">
+                        <label class="me-2 mb-0">Hiển thị</label>
+                        <form method="get" id="pageSizeForm" class="d-flex align-items-center">
+                            <input type="hidden" name="pages" value="@Model.Pagination?.CurrentPage" />
+                            <input type="hidden" name="SortColumn" value="@Model.SortColumn" />
+                            <input type="hidden" name="SortOrder" value="@Model.SortOrder" />
+                            <input type="hidden" name="SearchTerm" value="@Model.SearchTerm" />
+                            <select name="PageSize" onchange="document.getElementById('pageSizeForm').submit();" class="form-select form-select-sm">
+                                <option value="5" selected="@(Model.PageSize == 5)">5</option>
+                                <option value="10" selected="@(Model.PageSize == 10)">10</option>
+                                <option value="25" selected="@(Model.PageSize == 25)">25</option>
+                                <option value="50" selected="@(Model.PageSize == 50)">50</option>
+                            </select>
+                        </form>
+                    </div>
+                    <nav aria-label="Pagination bottom">
+                        <ul class="pagination mb-0">
+                            <li class="page-item @(Model.Pagination.CurrentPage == 1 ? "disabled" : "")">
+                                <a class="page-link" asp-page="./AdminPage"
+                                   asp-route-pages="@(Model.Pagination.CurrentPage - 1)"
+                                   asp-route-PageSize="@Model.PageSize"
+                                   asp-route-SortColumn="@Model.SortColumn"
+                                   asp-route-SortOrder="@Model.SortOrder"
+                                   asp-route-SearchTerm="@Model.SearchTerm">&laquo;</a>
+                            </li>
+                            @for (int i = 1; i <= Math.Ceiling((double)Model.Pagination.TotalItems / Model.Pagination.PageSize); i++)
+                            {
+                                <li class="page-item @(i == Model.Pagination.CurrentPage ? "active" : "") d-none d-sm-inline">
+                                    <a class="page-link" asp-page="./AdminPage"
+                                       asp-route-pages="@i"
+                                       asp-route-PageSize="@Model.PageSize"
+                                       asp-route-SortColumn="@Model.SortColumn"
+                                       asp-route-SortOrder="@Model.SortOrder"
+                                       asp-route-SearchTerm="@Model.SearchTerm">@i</a>
+                                </li>
+                            }
+                            <li class="page-item @(Model.Pagination.CurrentPage == Math.Ceiling((double)Model.Pagination.TotalItems / Model.Pagination.PageSize) ? "disabled" : "")">
+                                <a class="page-link" asp-page="./AdminPage"
+                                   asp-route-pages="@(Model.Pagination.CurrentPage + 1)"
+                                   asp-route-PageSize="@Model.PageSize"
+                                   asp-route-SortColumn="@Model.SortColumn"
+                                   asp-route-SortOrder="@Model.SortOrder"
+                                   asp-route-SearchTerm="@Model.SearchTerm">&raquo;</a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" asp-page-handler="Delete" id="deleteForm">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteModalLabel">Xác nhận xóa</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    Bạn có chắc chắn muốn xóa admin <strong id="deleteAdminName"></strong>?
+                    <input type="hidden" name="DeleteId" id="deleteAdminId" value="" />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-danger">Xóa</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="adminInfoModal" tabindex="-1" aria-labelledby="adminInfoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title mb-0 text-white" id="adminInfoModalLabel">Thông tin admin</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Họ tên</dt>
+                    <dd id="ai-fullname" class="col-sm-8"></dd>
+                    <dt class="col-sm-4">Tài khoản</dt>
+                    <dd id="ai-username" class="col-sm-8"></dd>
+                    <dt class="col-sm-4">Số điện thoại</dt>
+                    <dd id="ai-phone" class="col-sm-8"></dd>
+                    <dt class="col-sm-4">Email</dt>
+                    <dd id="ai-email" class="col-sm-8"></dd>
+                    <dt class="col-sm-4">Quyền</dt>
+                    <dd id="ai-role" class="col-sm-8"></dd>
+                    <dt class="col-sm-4">Địa chỉ</dt>
+                    <dd id="ai-address" class="col-sm-8"></dd>
+                    <dt class="col-sm-4">Lần đăng nhập</dt>
+                    <dd id="ai-lastlogin" class="col-sm-8"></dd>
+                    <dt class="col-sm-4">Lockout end</dt>
+                    <dd id="ai-lockout" class="col-sm-8"></dd>
+                    <dt class="col-sm-4">Hoạt động</dt>
+                    <dd id="ai-active" class="col-sm-8"></dd>
+                    <dt class="col-sm-4">Đăng nhập thất bại</dt>
+                    <dd id="ai-failed" class="col-sm-8"></dd>
+                    <dt class="col-sm-4">Ngày tạo</dt>
+                    <dd id="ai-created" class="col-sm-8"></dd>
+                </dl>
+            </div>
+            <div class="modal-footer">
+                <a id="adminInfoEditBtn" class="btn btn-warning" href="#">Sửa</a>
+                <button id="adminInfoDeleteBtn" type="button" class="btn btn-danger">Xóa</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+
+    <script>
+        function formatTimestamp(ms) {
+            if (ms === null || ms === undefined || ms === '') return '';
+            if (typeof ms === 'string' && /\D/.test(ms)) {
+                const d = new Date(ms);
+                if (!isNaN(d.getTime())) {
+                    const pad = n => n.toString().padStart(2, '0');
+                    return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+                }
+                return ms;
+            }
+            const n = Number(ms);
+            if (Number.isNaN(n) || !isFinite(n)) return '';
+            const d = new Date(n);
+            if (isNaN(d.getTime())) return '';
+            const pad = n => n.toString().padStart(2, '0');
+            return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        }
+
+        function escapeHtml(s) {
+            if (s === null || s === undefined) return '';
+            return String(s)
+                .replaceAll('&','&amp;')
+                .replaceAll('<','&lt;')
+                .replaceAll('>','&gt;')
+                .replaceAll('"','&quot;')
+                .replaceAll("'", '&#39;');
+        }
+
+        function hideAlertsOnce() {
+            document.querySelectorAll('.alert').forEach(alert => {
+                alert.classList.add('fade');
+                setTimeout(() => {
+                    if (alert && alert.parentNode) alert.parentNode.removeChild(alert);
+                }, 500);
+            });
+        }
+        setTimeout(hideAlertsOnce, 3000);
+
+        (function initDeleteModal() {
+            const deleteModalEl = document.getElementById('deleteModal');
+            if (!deleteModalEl) return;
+
+            deleteModalEl.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                if (!button) return;
+                const adminId = button.getAttribute('data-id') ?? '';
+                const adminName = button.getAttribute('data-name') ?? '';
+                const nameNode = deleteModalEl.querySelector('#deleteAdminName');
+                const idNode = deleteModalEl.querySelector('#deleteAdminId');
+                if (nameNode) nameNode.textContent = adminName;
+                if (idNode) idNode.value = adminId;
+            });
+
+            const deleteForm = document.getElementById('deleteForm');
+            if (deleteForm) {
+                deleteForm.addEventListener('submit', function (e) {
+                    const idEl = document.getElementById('deleteAdminId');
+                    const val = idEl ? idEl.value : '';
+                    if (!val || val.trim() === '') {
+                        e.preventDefault();
+                        alert('Không tìm thấy id để xóa. Vui lòng thử lại.');
+                    }
+                });
+            }
+        })();
+
+        const serverParams = {
+            pages: Number('@(Model.Pagination?.CurrentPage ?? 1)'),
+            pageSize: Number('@Model.PageSize'),
+            sortColumn: '@(Model.SortColumn ?? "")',
+            sortOrder: '@(Model.SortOrder ?? "")',
+            searchTerm: '@(Model.SearchTerm ?? "")'
+        };
+
+        window._adminsRealtimeData = window._adminsRealtimeData || {};
+        window._adminsRealtimeOrder = window._adminsRealtimeOrder || [];
+
+        const adminConnection = new signalR.HubConnectionBuilder()
+            .withUrl('/hubs/admins')
+            .withAutomaticReconnect()
+            .build();
+
+        adminConnection.on('AdminsUpdated', function(items) {
+            try {
+                const map = {};
+                const order = [];
+                if (!items) {
+                    window._adminsRealtimeData = {};
+                    window._adminsRealtimeOrder = [];
+                    applyFiltersAndRenderAdmins();
+                    return;
+                }
+                if (Array.isArray(items)) {
+                    for (const a of items) {
+                        if (!a) continue;
+                        const key = (a.id ?? (a.id?.toString?.())) ?? null;
+                        if (!key) continue;
+                        map[key] = a;
+                        order.push(key);
+                    }
+                } else if (typeof items === 'object') {
+                    for (const k of Object.keys(items)) {
+                        map[k] = items[k];
+                        order.push(k);
+                    }
+                }
+                window._adminsRealtimeData = map;
+                window._adminsRealtimeOrder = order;
+                applyFiltersAndRenderAdmins();
+            } catch (e) {
+                console.error('AdminsUpdated handler error', e);
+            }
+        });
+
+        adminConnection.start().catch(err => {
+            console.error('SignalR start failed', err);
+        });
+
+        function applyFiltersAndRenderAdmins() {
+            const dataObj = window._adminsRealtimeData || {};
+            const order = window._adminsRealtimeOrder && window._adminsRealtimeOrder.length ? window._adminsRealtimeOrder : Object.keys(dataObj || {});
+            const baseArr = order.map(k => {
+                const v = dataObj[k] || {};
+                let createdAtVal = v.createdAt ?? v.created_at ?? v.createdAtUtc ?? null;
+                let lastLoginVal = v.LastLoginAt ?? v.lastLoginAt ?? v.lastLogin ?? v.lastLoginAtUtc ?? null;
+                const fn = v.firstName || v.firstname || '';
+                const ln = v.lastName || v.lastname || '';
+                return {
+                    id: k,
+                    firstName: fn,
+                    lastName: ln,
+                    fullName: (ln + ' ' + fn).trim(),
+                    username: v.username || '',
+                    phone: v.phone || '',
+                    email: v.email || '',
+                    role: (v.role !== undefined && v.role !== null) ? v.role : '',
+                    address: v.address || '',
+                    avatar: v.avatar || '',
+                    LastLoginAt: lastLoginVal,
+                    LockoutEnd: v.LockoutEnd || '',
+                    isActive: v.isActive === true || v.isActive === "true" ? true : false,
+                    failedLoginAttempts: v.failedLoginAttempts ?? 0,
+                    createdAt: createdAtVal,
+                    createdText: v.createdText ?? null
+                };
+            });
+
+            const search = (document.querySelector('input[name="SearchTerm"]')?.value || serverParams.searchTerm || '').trim().toLowerCase();
+            let filtered = baseArr;
+            if (search) {
+                filtered = baseArr.filter(a =>
+                    (a.fullName && a.fullName.toLowerCase().includes(search)) ||
+                    (a.username && a.username.toLowerCase().includes(search)) ||
+                    (a.email && a.email.toLowerCase().includes(search)) ||
+                    (a.phone && a.phone.toLowerCase().includes(search))
+                );
+            }
+
+            const sortCol = (serverParams.sortColumn || '').toString();
+            const sortOrder = (serverParams.sortOrder || 'asc').toLowerCase();
+
+            if (sortCol) {
+                filtered.sort((x,y) => {
+                    let cmp = 0;
+                    switch (sortCol) {
+                        case 'fullname':
+                            cmp = (x.lastName||'').localeCompare(y.lastName||'') || (x.firstName||'').localeCompare(y.firstName||'');
+                            break;
+                        case 'firstName':
+                            cmp = (x.firstName||'').localeCompare(y.firstName||'');
+                            break;
+                        case 'lastName':
+                            cmp = (x.lastName||'').localeCompare(y.lastName||'');
+                            break;
+                        case 'username':
+                            cmp = (x.username||'').localeCompare(y.username||'');
+                            break;
+                        case 'email':
+                            cmp = (x.email||'').localeCompare(y.email||'');
+                            break;
+                        case 'phone':
+                            cmp = (x.phone||'').localeCompare(y.phone||'');
+                            break;
+                        case 'role':
+                            cmp = (Number(x.role) || 0) - (Number(y.role) || 0);
+                            break;
+                        case 'LastLogin':
+                            const al = Date.parse(x.LastLoginAt) || Number(x.LastLoginAt) || 0;
+                            const bl = Date.parse(y.LastLoginAt) || Number(y.LastLoginAt) || 0;
+                            cmp = al === bl ? 0 : (al < bl ? -1 : 1);
+                            break;
+                        case 'isActive':
+                            cmp = (x.isActive === true ? 1 : 0) - (y.isActive === true ? 1 : 0);
+                            break;
+                        case 'CreatedDate':
+                            const an = Date.parse(x.createdAt) || Number(x.createdAt) || 0;
+                            const bn = Date.parse(y.createdAt) || Number(y.createdAt) || 0;
+                            cmp = an === bn ? 0 : (an < bn ? -1 : 1);
+                            break;
+                        default:
+                            cmp = (x.id||'').toString().localeCompare((y.id||'').toString());
+                            break;
+                    }
+                    return sortOrder === 'asc' ? cmp : -cmp;
+                });
+            }
+
+            const pageSize = Number(document.querySelector('select[name="PageSize"]')?.value || serverParams.pageSize || 10);
+            const currentPage = Number(serverParams.pages || 1);
+            const totalItems = filtered.length;
+            const totalPages = pageSize > 0 ? Math.max(1, Math.ceil(totalItems / pageSize)) : 1;
+            const page = Math.min(Math.max(1, currentPage), totalPages);
+
+            const startIndex = totalItems === 0 ? 0 : (page - 1) * pageSize + 1;
+            const endIndex = totalItems === 0 ? 0 : Math.min(page * pageSize, totalItems);
+            const pageItems = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+            renderAdminRows(pageItems);
+            updateAdminSummary(startIndex, endIndex, totalItems);
+
+            setTimeout(hideAlertsOnce, 3000);
+        }
+
+        function renderAdminRows(items) {
+            const tbody = document.querySelector('table tbody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            if (!items || items.length === 0) {
+                const tr = document.createElement('tr');
+                const td = document.createElement('td');
+                td.colSpan = 7;
+                td.className = 'text-center text-muted';
+                td.textContent = 'Không có admin nào.';
+                tr.appendChild(td);
+                tbody.appendChild(tr);
+                return;
+            }
+
+            for (const a of items) {
+                const tr = document.createElement('tr');
+                tr.style.cursor = 'pointer';
+                tr.dataset.id = a.id || '';
+                tr.dataset.username = a.username || '';
+                tr.dataset.firstname = a.firstName || '';
+                tr.dataset.lastname = a.lastName || '';
+                tr.dataset.fullname = a.fullName || '';
+                tr.dataset.phone = a.phone || '';
+                tr.dataset.email = a.email || '';
+                tr.dataset.role = a.role ?? '';
+                tr.dataset.address = a.address || '';
+                tr.dataset.avatar = a.avatar || '';
+                tr.dataset.lastlogin = a.LastLoginAt || '';
+                tr.dataset.lockout = a.LockoutEnd || '';
+                tr.dataset.active = a.isActive ? 'true' : 'false';
+                tr.dataset.failed = a.failedLoginAttempts || 0;
+                const displayCreated = a.createdText ? a.createdText : formatTimestamp(a.createdAt);
+                tr.dataset.createdtext = displayCreated;
+
+                tr.addEventListener('click', function (e) {
+                    if (e.target.closest('.dropdown')) return;
+                    showAdminInfo(this);
+                });
+
+                tr.innerHTML = `
+                    <td><strong>${escapeHtml(a.fullName)}</strong></td>
+                    <td>${escapeHtml(a.username)}</td>
+                    <td>${escapeHtml(a.role)}</td>
+                    <td>${escapeHtml(a.phone)}</td>
+                    <td>${escapeHtml(a.email)}</td>
+                    <td>${escapeHtml(displayCreated)}</td>
+                    <td>
+                        <div class="dropdown">
+                            <button type="button"
+                                    class="btn p-0 dropdown-toggle hide-arrow"
+                                    data-bs-toggle="dropdown"
+                                    data-bs-boundary="viewport"
+                                    onclick="event.stopPropagation();">
+                                <i class="bx bx-dots-vertical-rounded"></i>
+                            </button>
+                            <div class="dropdown-menu" onclick="event.stopPropagation();">
+                                <a class="dropdown-item" href="/Accounts/Admin/EditAdmin?id=${encodeURIComponent(a.id)}" onclick="event.stopPropagation();">
+                                    <i class="bx bx-edit-alt me-1"></i> Sửa
+                                </a>
+                                <button type="button" class="dropdown-item text-danger"
+                                        data-bs-toggle="modal" data-bs-target="#deleteModal"
+                                        data-id="${escapeHtml(a.id)}" data-name="${escapeHtml(a.fullName)}"
+                                        onclick="event.stopPropagation();">
+                                    <i class="bx bx-trash me-1"></i> Xóa
+                                </button>
+                            </div>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            }
+        }
+
+        function updateAdminSummary(startIndex, endIndex, totalItems) {
+            const el = document.querySelector('.fixed-footer small.text-muted');
+            if (el) el.textContent = `Hiển thị ${startIndex} đến ${endIndex} của ${totalItems} admin`;
+        }
+
+        function showAdminInfo(el) {
+            if (!el) return;
+            if (el.closest('.dropdown')) return;
+
+            const ds = el.dataset || {};
+            const id = ds.id || '';
+            const firstname = ds.firstname || '';
+            const lastname = ds.lastname || '';
+            const name = ((lastname || '') + ' ' + (firstname || '')).trim();
+            const username = ds.username || '';
+            const phone = ds.phone || '';
+            const email = ds.email || '';
+            const role = ds.role || '';
+            const address = ds.address || '';
+            const avatar = ds.avatar || '';
+            const lastlogin = ds.lastlogin || '';
+            const lockout = ds.lockout || '';
+            const active = ds.active || 'false';
+            const failed = ds.failed || '0';
+            const created = ds.createdtext || '';
+
+            const fill = (idSel, value) => {
+                const node = document.getElementById(idSel);
+                if (node) node.textContent = value ?? '';
+            };
+
+            fill('ai-fullname', name);
+            fill('ai-username', username);
+            fill('ai-phone', phone);
+            fill('ai-email', email);
+            fill('ai-role', role);
+            fill('ai-address', address);
+            const avatarNode = document.getElementById('ai-avatar');
+            if (avatarNode) {
+                avatarNode.innerHTML = avatar ? `<img src="${escapeHtml(avatar)}" alt="avatar" style="max-width:120px;max-height:80px;border-radius:6px;" />` : '';
+            }
+            fill('ai-lastlogin', formatTimestamp(lastlogin));
+            fill('ai-lockout', formatTimestamp(lockout));
+            fill('ai-active', active === 'true' ? 'Có' : 'Không');
+            fill('ai-failed', failed.toString());
+            fill('ai-created', created);
+
+            const editBtn = document.getElementById('adminInfoEditBtn');
+            if (editBtn) {
+                const editBase = '@Url.Page("./EditAdmin")';
+                const params = new URLSearchParams();
+                if (id) params.set('id', id);
+                if (serverParams.pages) params.set('pages', serverParams.pages);
+                if (serverParams.pageSize) params.set('PageSize', serverParams.pageSize);
+                if (serverParams.sortColumn) params.set('SortColumn', serverParams.sortColumn);
+                if (serverParams.sortOrder) params.set('SortOrder', serverParams.sortOrder);
+                if (serverParams.searchTerm) params.set('SearchTerm', serverParams.searchTerm);
+                editBtn.href = editBase + (params.toString() ? ('?' + params.toString()) : '');
+                editBtn.onclick = ev => ev.stopPropagation();
+            }
+
+            const infoDel = document.getElementById('adminInfoDeleteBtn');
+            if (infoDel) {
+                const newDel = infoDel.cloneNode(true);
+                infoDel.parentNode.replaceChild(newDel, infoDel);
+                newDel.addEventListener('click', function (ev) {
+                    ev.stopPropagation();
+                    const adminModalEl = document.getElementById('adminInfoModal');
+                    const adminModal = bootstrap.Modal.getInstance(adminModalEl);
+                    if (adminModal) adminModal.hide();
+
+                    const delNameEl = document.getElementById('deleteAdminName');
+                    const delIdEl = document.getElementById('deleteAdminId');
+                    if (delNameEl) delNameEl.textContent = name;
+                    if (delIdEl) delIdEl.value = id;
+
+                    const dEl = document.getElementById('deleteModal');
+                    const dModal = bootstrap.Modal.getOrCreateInstance(dEl);
+                    dModal.show();
+                });
+            }
+
+            const modalEl = document.getElementById('adminInfoModal');
+            const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            modal.show();
+        }
+
+        (function seedFromServerRows() {
+            try {
+                const rows = document.querySelectorAll('table tbody tr[data-id]');
+                if (!rows || rows.length === 0) return;
+                const map = window._adminsRealtimeData || {};
+                const order = window._adminsRealtimeOrder || [];
+                rows.forEach(r => {
+                    const id = r.dataset.id;
+                    if (!id) return;
+                    const fn = r.dataset.firstname || '';
+                    const ln = r.dataset.lastname || '';
+                    map[id] = {
+                        id: id,
+                        username: r.dataset.username || '',
+                        firstName: fn,
+                        lastName: ln,
+                        fullName: (ln + ' ' + fn).trim(),
+                        phone: r.dataset.phone || '',
+                        email: r.dataset.email || '',
+                        role: r.dataset.role || '',
+                        address: r.dataset.address || '',
+                        avatar: r.dataset.avatar || '',
+                        LastLoginAt: r.dataset.lastlogin || '',
+                        LockoutEnd: r.dataset.lockout || '',
+                        isActive: r.dataset.active === 'true',
+                        failedLoginAttempts: Number(r.dataset.failed || 0),
+                        createdText: r.dataset.createdtext || ''
+                    };
+                    order.push(id);
+                });
+                window._adminsRealtimeData = map;
+                window._adminsRealtimeOrder = order;
+                setTimeout(applyFiltersAndRenderAdmins, 200);
+            } catch (e) { }
+        })();
+    </script>
+}
