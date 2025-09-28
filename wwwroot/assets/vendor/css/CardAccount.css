@@ -43,11 +43,3 @@
     .user-card.expanded .bx-chevron-down {
         transform: rotate(180deg);
     }
-
-#logoutModal.modal {
-    z-index: 20001 !important;
-}
-
-.modal-backdrop {
-    z-index: 20000 !important;
-}
