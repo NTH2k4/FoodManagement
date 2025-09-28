@@ -31,6 +31,7 @@
     <link rel="stylesheet" href="~/assets/vendor/css/core.css" class="template-customizer-core-css" />
     <link rel="stylesheet" href="~/assets/vendor/css/theme-default.css" class="template-customizer-theme-css" />
     <link rel="stylesheet" href="~/assets/css/demo.css" />
+    <link rel="stylesheet" href="~/assets/vendor/css/CardAccount.css" />
 
     <!-- Vendors CSS -->
     <link rel="stylesheet" href="~/assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.css" />
@@ -54,7 +55,7 @@
 
             <aside id="layout-menu" class="layout-menu menu-vertical menu bg-menu-theme border-end border-2">
                 <div class="app-brand demo">
-                    <a href="index.html" class="app-brand-link">
+                    <a asp-page="/Dashboard/index" class="app-brand-link">
                         <span class="app-brand-logo demo">
                             <svg width="25"
                                  viewBox="0 0 25 42"
@@ -108,6 +109,81 @@
 
                 <div class="menu-inner-shadow"></div>
 
+                <div class="user-card-wrapper ms-auto me-3">
+                    @if (User?.Identity?.IsAuthenticated ?? false)
+                    {
+                        var avatar = User.Claims.FirstOrDefault(c => c.Type == "avatar")?.Value ?? Url.Content("~/assets/img/avatars/account.png");
+                        var firstname = User.Claims.FirstOrDefault(c => c.Type == "firstName")?.Value ?? "";
+                        var lastname = User.Claims.FirstOrDefault(c => c.Type == "lastName")?.Value ?? "";
+                        var username = User.Identity?.Name ?? User.Claims.FirstOrDefault(c => c.Type == "username")?.Value ?? "";
+                        var fullname = $"{lastname} {firstname}".Trim();
+                        if (string.IsNullOrWhiteSpace(fullname)) fullname = username;
+                        <div class="card user-card shadow-sm" style="box-sizing:border-box;">
+                            <div class="card-body d-flex align-items-center justify-content-between" id="userCardToggle" role="button" aria-expanded="false" aria-controls="userCardCollapse">
+                                <div class="d-flex align-items-center">
+                                    <img src="@avatar" alt="avatar" width="48" height="48" class="rounded-circle me-2" style="object-fit:cover;" />
+                                    <div class="text-start">
+                                        <div class="fw-semibold text-truncate" style="max-width:160px;">@fullname</div>
+                                        <small class="text-muted text-truncate" style="max-width:160px;">@username</small>
+                                    </div>
+                                </div>
+                                <div class="text-end ms-2">
+                                    <i class="bx bx-chevron-down"></i>
+                                </div>
+                            </div>
+                            <div class="collapse" id="userCardCollapse">
+                                <div class="list-group list-group-flush">
+                                    <a class="list-group-item list-group-item-action d-flex align-items-center" asp-page="/Dashboard/Account">
+                                        <i class="bx bx-user me-2"></i>
+                                        <span>Thông tin tài khoản</span>
+                                    </a>
+                                    <a class="list-group-item list-group-item-action d-flex align-items-center" asp-page="/Dashboard/Settings">
+                                        <i class="bx bx-cog me-2"></i>
+                                        <span>Cài đặt</span>
+                                    </a>
+                                    <a class="list-group-item list-group-item-action d-flex align-items-center" asp-page="/Dashboard/ChangePassword">
+                                        <i class="bx bx-lock-alt me-2"></i>
+                                        <span>Đổi mật khẩu</span>
+                                    </a>
+                                    <div class="list-group-item">
+                                        <button type="button"
+                                                class="btn btn-link text-danger p-0 d-flex align-items-center"
+                                                onclick="showConfirmLogout(event)">
+                                            <i class="bx bx-power-off me-2"></i><span>Đăng xuất</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <a class="btn btn-outline-primary btn-sm" asp-page="/Login/Logout">Đăng nhập</a>
+                    }
+
+                    <!-- Login Modal logout confirm-->
+                    <div class="modal fade" id="logoutModal" tabindex="-1" aria-labelledby="logoutModalLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content">
+                                <form method="post" asp-page="/Login/Logout" id="logoutForm">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title" id="logoutModalLabel">Xác nhận đăng xuất</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        Bạn có chắc chắn muốn đăng xuất khỏi hệ thống không?
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn-danger">Đăng xuất</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <ul class="menu-inner py-1">
                     <!-- Dashboard -->
                     <li class="menu-item @(Context.Request.Path.StartsWithSegments("/Dashboard") ? "active" : "")">
@@ -138,8 +214,8 @@
 									<div data-i18n="">Người dùng</div>
 								</a>
 							</li>
-							<li class="menu-item @(Context.Request.Path.StartsWithSegments("/Accounts/User/AdminPage") ? "active" : "")">
-								<a asp-page="/Accounts/User/UserPage" class="menu-link">
+							<li class="menu-item @(Context.Request.Path.StartsWithSegments("/Accounts/Admin/AdminPage") ? "active" : "")">
+								<a asp-page="/Accounts/Admin/AdminPage" class="menu-link">
 									<i class="menu-icon tf-icons bx bx-user"></i>
 									<div data-i18n="">Admin</div>
 								</a>
@@ -226,8 +302,8 @@
     <!-- Main JS -->
     <script src="~/assets/js/main.js"></script>
 
-    <!-- Page JS -->
-    <script src="~/assets/js/dashboards-analytics.js"></script>
+    <!-- Card Account JS -->
+    <script src="~/assets/js/CardAccount.js"></script>
 
     <!-- Place this tag in your head or just before your close body tag. -->
     <script async defer src="https://buttons.github.io/buttons.js"></script>

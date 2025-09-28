@@ -18,6 +18,8 @@ namespace FoodManagement.Security
             {
                 new Claim(ClaimTypes.NameIdentifier, admin.id),
                 new Claim(ClaimTypes.Name, admin.username),
+                new Claim("firstName", admin.firstName),
+                new Claim("lastName", admin.lastName),
                 new Claim(ClaimTypes.Role, admin.role == AdminRole.SuperAdmin ? "SuperAdmin" : "Staff"),
                 new Claim("role", admin.role.ToString())
             };

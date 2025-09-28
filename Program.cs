@@ -1,6 +1,7 @@
 ﻿using FoodManagement.Contracts;
 using FoodManagement.HostedServices;
 using FoodManagement.Models;
+using FoodManagement.Presenters;
 using FoodManagement.Repositories;
 using FoodManagement.Security;
 using FoodManagement.Services;
@@ -12,8 +13,8 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddRazorPages(options =>
 {
-    options.Conventions.AuthorizeFolder("/"); // yêu cầu Authenticate cho toàn bộ pages
-    options.Conventions.AllowAnonymousToPage("/Login/Login"); // cho phép trang Login truy cập công khai
+    options.Conventions.AuthorizeFolder("/"); 
+    options.Conventions.AllowAnonymousToPage("/Login/Login");
 });
 
 builder.Services.AddHttpContextAccessor();
@@ -31,6 +32,15 @@ builder.Services.AddSingleton<IRepository<UserDto>>(sp => sp.GetRequiredService<
 builder.Services.AddSingleton<IRealtimeRepository<UserDto>>(sp => sp.GetRequiredService<FirebaseUserRepository>());
 builder.Services.AddScoped<IService<UserDto>, UserService>();
 builder.Services.AddHostedService<FirebaseUserHostedService>();
+
+// Admin
+builder.Services.AddSingleton<FirebaseAdminRepository>();
+builder.Services.AddSingleton<IRepository<AdminDto>>(sp => sp.GetRequiredService<FirebaseAdminRepository>());
+builder.Services.AddSingleton<IRealtimeRepository<AdminDto>>(sp => sp.GetRequiredService<FirebaseAdminRepository>());
+builder.Services.AddScoped<IService<AdminDto>, AdminService>();
+builder.Services.AddScoped<Func<IListView<AdminDto>, AdminPresenter>>(sp =>
+    view => new AdminPresenter(sp.GetRequiredService<IService<AdminDto>>(), view));
+builder.Services.AddHostedService<FirebaseAdminHostedService>();
 
 // Booking
 builder.Services.AddSingleton<FirebaseBookingRepository>();
@@ -62,9 +72,11 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     .AddCookie(options =>
     {
         options.LoginPath = "/Login/Login";
+        options.LogoutPath = "/Login/Logout";
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
         options.SlidingExpiration = true;
         options.Cookie.HttpOnly = true;
+        options.Cookie.IsEssential = true;
         options.Cookie.SameSite = SameSiteMode.Strict;
         options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
     });

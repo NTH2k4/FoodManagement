@@ -1,0 +1,53 @@
+﻿.user-card-wrapper {
+    width: 100%;
+    max-width: 260px;
+    box-sizing: border-box;
+    padding: 8px;
+}
+
+.user-card {
+    width: 100%;
+    background-color: #f3f5f7;
+}
+
+    .user-card .card-body {
+        cursor: pointer;
+        padding: 0.5rem 0.75rem;
+    }
+
+        .user-card .card-body .fw-semibold {
+            font-size: 0.95rem;
+        }
+
+        .user-card .card-body small {
+            display: block;
+            font-size: 0.80rem;
+            color: rgba(0,0,0,0.6);
+        }
+
+    .user-card .list-group-item {
+        padding: 0.6rem 0.75rem;
+    }
+
+        .user-card .list-group-item i {
+            width: 22px;
+            text-align: center;
+        }
+
+    .user-card .bx-chevron-down {
+        transition: transform .18s ease;
+        font-size: 1.1rem;
+        color: rgba(0,0,0,0.6);
+    }
+
+    .user-card.expanded .bx-chevron-down {
+        transform: rotate(180deg);
+    }
+
+#logoutModal.modal {
+    z-index: 20001 !important;
+}
+
+.modal-backdrop {
+    z-index: 20000 !important;
+}

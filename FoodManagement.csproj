@@ -10,8 +10,4 @@
     <PackageReference Include="FirebaseAdmin" Version="3.4.0" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Pages\Accounts\Admin\" />
-  </ItemGroup>
-
 </Project>
