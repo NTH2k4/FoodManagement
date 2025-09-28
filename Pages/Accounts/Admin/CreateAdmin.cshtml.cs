@@ -23,19 +23,20 @@ namespace FoodManagement.Pages.Accounts.Admin
 
         public class InputModel
         {
-            [Required]
+            [Required(ErrorMessage = "Tài khoản (username) là bắt buộc.")]
             [Display(Name = "Tài khoản (username)")]
             public string username { get; set; } = string.Empty;
 
-            [Required]
+            [Required(ErrorMessage = "Họ là bắt buộc.")]
             [Display(Name = "Họ")]
             public string firstName { get; set; } = string.Empty;
 
-            [Required]
+            [Required(ErrorMessage = "Tên là bắt buộc.")]
             [Display(Name = "Tên")]
             public string lastName { get; set; } = string.Empty;
 
-            [Required]
+            [Required(ErrorMessage = "Số điện thoại là bắt buộc.")]
+            [MinLength(10, ErrorMessage = "Số điện thoại không đúng.")]
             [Phone]
             [Display(Name = "Số điện thoại")]
             public string phone { get; set; } = string.Empty;
@@ -47,13 +48,13 @@ namespace FoodManagement.Pages.Accounts.Admin
             [Display(Name = "Địa chỉ")]
             public string? address { get; set; }
 
-            [Required]
+            [Required(ErrorMessage = "Mật khẩu là bắt buộc.")]
             [DataType(DataType.Password)]
             [MinLength(6, ErrorMessage = "Mật khẩu tối thiểu 6 ký tự.")]
             [Display(Name = "Mật khẩu")]
             public string password { get; set; } = string.Empty;
 
-            [Required]
+            [Required(ErrorMessage = "Mật khẩu xác nhận không khớp.")]
             [DataType(DataType.Password)]
             [Compare("password", ErrorMessage = "Mật khẩu xác nhận không khớp.")]
             [Display(Name = "Xác nhận mật khẩu")]
