@@ -1,4 +1,4 @@
-using FoodManagement.Contracts;
+﻿using FoodManagement.Contracts;
 using FoodManagement.Presenters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -24,9 +24,9 @@ namespace FoodManagement.Pages.Login
 
         public class InputModel
         {
-            [Required]
+            [Required(ErrorMessage = "Tên đăng nhập không được để trống.")]
             public string Username { get; set; } = string.Empty;
-            [Required]
+            [Required(ErrorMessage = "Mật khẩu không được để trống.")]
             public string Password { get; set; } = string.Empty;
             public bool RememberMe { get; set; }
         }
