@@ -1,19 +1,25 @@
 ﻿using FoodManagement.Contracts;
 using FoodManagement.Models;
-using FoodManagement.Presenters;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Threading.Tasks;
 
 namespace FoodManagement.Pages.Accounts.User
 {
     public class UserPageModel : PageModel, IListView<UserDto>
     {
-        private readonly IService<UserDto> _service;
+        private readonly Func<IListView<UserDto>, IPresenter<UserDto>> _presenterFactory;
         private IPresenter<UserDto>? _presenter;
-        private IEnumerable<UserDto> _allUsers = new List<UserDto>();
+
+        public UserPageModel(Func<IListView<UserDto>, IPresenter<UserDto>> presenterFactory)
+        {
+            _presenterFactory = presenterFactory ?? throw new ArgumentNullException(nameof(presenterFactory));
+        }
+
         public IEnumerable<UserDto> Users { get; set; } = new List<UserDto>();
+
         [TempData]
         public string? Message { get; set; }
         [TempData]
@@ -32,7 +38,7 @@ namespace FoodManagement.Pages.Accounts.User
         public string? SortOrder { get; set; }
 
         [BindProperty(SupportsGet = true)]
-        public string? SearchTerm { get; set; } // Thêm thuộc tính tìm kiếm
+        public string? SearchTerm { get; set; }
 
         public PaginationInfo Pagination { get; set; } = new();
 
@@ -42,60 +48,26 @@ namespace FoodManagement.Pages.Accounts.User
         public UserDto? SelectedUser { get; set; }
         public bool ShowUserInfo { get; set; }
 
-        public UserPageModel(IService<UserDto> service)
-        {
-            _service = service;
-        }
-
-        // Add this property to bind the "id" query parameter from the URL
         [BindProperty(SupportsGet = true)]
         public string? Id { get; set; }
 
-        // Replace the usage of "id" with "Id" in OnGetAsync
         public async Task OnGetAsync()
         {
-            _presenter = new UserPresenter(_service, this);
-            await _presenter.LoadItemsAsync();
-            var users = _allUsers;
-            if (!string.IsNullOrWhiteSpace(SearchTerm))
-            {
-                users = users.Where(u => !string.IsNullOrEmpty(u.fullName) && u.fullName.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase));
-            }
-            if (!string.IsNullOrEmpty(SortColumn) && !string.IsNullOrEmpty(SortOrder))
-            {
-                users = SortUsers(users, SortColumn, SortOrder);
-            }
-
-            var totalItems = users.Count();
-            var totalPages = PageSize > 0 ? (int)Math.Ceiling((double)totalItems / PageSize) : 0;
-            if (Pages < 1) Pages = 1;
-            if (Pages > totalPages && totalPages > 0) Pages = totalPages;
-
-            Pagination = new PaginationInfo
-            {
-                TotalItems = totalItems,
-                PageSize = PageSize,
-                CurrentPage = Pages
-            };
-            Users = users.Skip((Pages - 1) * PageSize).Take(PageSize).ToList();
-
+            _presenter = _presenterFactory(this);
+            await _presenter.LoadItemsAsync(SearchTerm, SortColumn, SortOrder, Pages, PageSize);
             if (!string.IsNullOrEmpty(Id))
             {
-                SelectedUser = Users.FirstOrDefault(u => u.id == Id);
+                SelectedUser = null;
+                foreach (var u in Users)
+                {
+                    if (u.id == Id)
+                    {
+                        SelectedUser = u;
+                        break;
+                    }
+                }
                 ShowUserInfo = SelectedUser != null;
             }
-        }
-
-        private IEnumerable<UserDto> SortUsers(IEnumerable<UserDto> users, string sortColumn, string sortOrder)
-        {
-            bool asc = sortOrder == "asc";
-            return sortColumn switch
-            {
-                "fullname" => asc ? users.OrderBy(u => u.fullName) : users.OrderByDescending(u => u.fullName),
-                "email" => asc ? users.OrderBy(u => u.email) : users.OrderByDescending(u => u.email),
-                "CreatedDate" => asc ? users.OrderBy(u => u.createdAt) : users.OrderByDescending(u => u.createdAt),
-                _ => users
-            };
         }
 
         public async Task<IActionResult> OnPostDeleteAsync()
@@ -106,17 +78,12 @@ namespace FoodManagement.Pages.Accounts.User
             }
             else
             {
-                try
-                {
-                    await _service.DeleteAsync(DeleteId);
-                    Message = "Xóa người dùng thành công.";
-                }
-                catch (Exception ex)
-                {
-                    Error = $"Lỗi khi xóa: {ex.Message}";
-                }
+                _presenter ??= _presenterFactory(this);
+                await _presenter.DeleteItemAsync(DeleteId);
             }
-            return RedirectToPage(new {
+
+            return RedirectToPage(new
+            {
                 pages = Pages,
                 PageSize = PageSize,
                 SortColumn = SortColumn,
@@ -125,12 +92,9 @@ namespace FoodManagement.Pages.Accounts.User
             });
         }
 
-        // ===============================
-        // Implementation of IListView
-        // ===============================
         public void ShowItems(IEnumerable<UserDto> items)
         {
-            _allUsers = items;
+            Users = items ?? Array.Empty<UserDto>();
         }
 
         public void ShowItemDetail(UserDto item)
@@ -148,5 +112,9 @@ namespace FoodManagement.Pages.Accounts.User
             Error = error;
         }
 
+        public void SetPagination(PaginationInfo pagination)
+        {
+            Pagination = pagination ?? new PaginationInfo();
+        }
     }
 }

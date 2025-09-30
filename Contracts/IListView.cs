@@ -8,5 +8,6 @@ namespace FoodManagement.Contracts
         void ShowItemDetail(T item);
         void ShowMessage(string message);
         void ShowError(string error);
+        void SetPagination(PaginationInfo pagination);
     }
 }

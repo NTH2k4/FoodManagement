@@ -1,5 +1,7 @@
 ﻿using FoodManagement.Contracts;
 using FoodManagement.Models;
+using System;
+using System.Threading.Tasks;
 
 namespace FoodManagement.Presenters
 {
@@ -14,14 +16,58 @@ namespace FoodManagement.Presenters
             _view = view;
         }
 
-        public Task CreateItemAsync(FeedbackDto dto)
+        public async Task LoadItemsAsync(string? searchTerm, string? sortColumn, string? sortOrder, int page, int pageSize)
         {
-            throw new NotImplementedException();
+            try
+            {
+                var (items, pagination) = await _service.QueryAsync(searchTerm, sortColumn, sortOrder, page, pageSize);
+                _view.ShowItems(items ?? Array.Empty<FeedbackDto>());
+                if (pagination != null) _view.SetPagination(pagination);
+            }
+            catch (Exception ex)
+            {
+                _view.ShowError(ex.Message);
+            }
         }
 
-        public Task UpdateItemAsync(FeedbackDto dto)
+        public async Task LoadItemByIdAsync(string id)
         {
-            throw new NotImplementedException();
+            try
+            {
+                var dto = await _service.GetByIdAsync(id);
+                if (dto != null) _view.ShowItemDetail(dto);
+                else _view.ShowMessage("Không tìm thấy phản hồi.");
+            }
+            catch (Exception ex)
+            {
+                _view.ShowError(ex.Message);
+            }
+        }
+
+        public async Task CreateItemAsync(FeedbackDto dto)
+        {
+            try
+            {
+                await _service.CreateAsync(dto);
+                _view.ShowMessage("Gửi phản hồi thành công.");
+            }
+            catch (Exception ex)
+            {
+                _view.ShowError(ex.Message);
+            }
+        }
+
+        public async Task UpdateItemAsync(FeedbackDto dto)
+        {
+            try
+            {
+                await _service.UpdateAsync(dto);
+                _view.ShowMessage("Cập nhật phản hồi thành công.");
+            }
+            catch (Exception ex)
+            {
+                _view.ShowError(ex.Message);
+            }
         }
 
         public async Task DeleteItemAsync(string id)
@@ -30,41 +76,13 @@ namespace FoodManagement.Presenters
             {
                 await _service.DeleteAsync(id);
                 _view.ShowMessage("Xóa phản hồi thành công.");
-                await LoadItemsAsync();
             }
             catch (Exception ex)
             {
-                _view.ShowError($"Lỗi khi xóa: {ex.Message}");
+                _view.ShowError(ex.Message);
             }
         }
 
-        public async Task LoadItemByIdAsync(string id)
-        {
-            try
-            {
-                var feedback = await _service.GetByIdAsync(id);
-                if (feedback != null)
-                    _view.ShowItemDetail(feedback);
-                else
-                    _view.ShowMessage("Không tìm thấy phản hồi.");
-            }
-            catch (Exception ex)
-            {
-                _view.ShowError($"Lỗi khi tải chi tiết: {ex.Message}");
-            }
-        }
-
-        public async Task LoadItemsAsync()
-        {
-            try
-            {
-                var feedbacks = await _service.GetAllAsync();
-                _view.ShowItems(feedbacks);
-            }
-            catch (Exception ex)
-            {
-                _view.ShowError($"Lỗi khi tải danh sách: {ex.Message}");
-            }
-        }
+        public Task StopRealtimeAsync() => Task.CompletedTask;
     }
 }

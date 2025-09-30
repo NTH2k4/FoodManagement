@@ -8,6 +8,10 @@
 <div class="container-p-y">
     <div class="card">
         <div class="card-body">
+            @if (!string.IsNullOrEmpty(Model.Message))
+            {
+                <div class="alert alert-success">@Model.Message</div>
+            }
             @if (a == null)
             {
                 <div class="alert alert-warning">Không tìm thấy thông tin tài khoản.</div>

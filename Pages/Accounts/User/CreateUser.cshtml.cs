@@ -2,15 +2,18 @@
 using FoodManagement.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using System;
+using System.Threading.Tasks;
 
 namespace FoodManagement.Pages.Accounts.User
 {
-    public class CreateUserModel : PageModel
+    public class CreateUserModel : PageModel, ICreateView
     {
-        private readonly IService<UserDto> _service;
-        public CreateUserModel(IService<UserDto> service)
+        private readonly Func<ICreateView, IPresenter<UserDto>> _presenterFactory;
+
+        public CreateUserModel(Func<ICreateView, IPresenter<UserDto>> presenterFactory)
         {
-            _service = service;
+            _presenterFactory = presenterFactory ?? throw new ArgumentNullException(nameof(presenterFactory));
         }
 
         [BindProperty]
@@ -21,6 +24,8 @@ namespace FoodManagement.Pages.Accounts.User
         [TempData]
         public string? Error { get; set; }
 
+        public void OnGet() { }
+
         public async Task<IActionResult> OnPostAsync()
         {
             if (!ModelState.IsValid)
@@ -28,24 +33,45 @@ namespace FoodManagement.Pages.Accounts.User
                 Error = "Vui lòng kiểm tra lại thông tin.";
                 return Page();
             }
+
+            var presenter = _presenterFactory(this);
             try
             {
-                User.id = Guid.NewGuid().ToString();
-                User.createdAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-                await _service.CreateAsync(User);
+                await presenter.CreateItemAsync(User);
+                if (!string.IsNullOrEmpty(Error)) return Page();
                 Message = "Tạo tài khoản thành công.";
                 return RedirectToPage("./UserPage");
-            }
-            catch (InvalidOperationException ex)
-            {
-                ModelState.AddModelError("User.phone", ex.Message);
-                return Page();
             }
             catch (Exception ex)
             {
                 Error = $"Lỗi khi tạo tài khoản: {ex.Message}";
                 return Page();
             }
+        }
+
+        public void ShowMessage(string message)
+        {
+            Message = message;
+        }
+
+        public void ShowError(string error)
+        {
+            Error = error;
+        }
+
+        public void ShowValidationErrors(System.Collections.Generic.IDictionary<string, string> fieldErrors)
+        {
+            if (fieldErrors == null) return;
+            foreach (var kv in fieldErrors)
+            {
+                ModelState.AddModelError(kv.Key ?? string.Empty, kv.Value ?? string.Empty);
+            }
+        }
+
+        public Task RedirectToListAsync()
+        {
+            Response.Redirect(Url.Page("./UserPage") ?? "/");
+            return Task.CompletedTask;
         }
     }
 }

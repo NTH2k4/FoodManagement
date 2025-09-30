@@ -112,13 +112,13 @@
 
     <div class="card rounded-0">
         <div class="card-body">
-            @if (!string.IsNullOrEmpty(Model.Error))
+            @if (!string.IsNullOrEmpty(Model.ErrorMessage))
             {
-                <div id="alert-error" class="alert alert-danger">@Model.Error</div>
+                <div id="alert-error" class="alert alert-danger">@Model.ErrorMessage</div>
             }
-            else if (!string.IsNullOrEmpty(Model.Message))
+            else if (!string.IsNullOrEmpty(Model.StatusMessage))
             {
-                <div id="alert-success" class="alert alert-success">@Model.Message</div>
+                <div id="alert-success" class="alert alert-success">@Model.StatusMessage</div>
             }
             <div class="table-responsive text-nowrap">
                 <table class="table table-bordered align-middle mb-0">

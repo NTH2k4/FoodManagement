@@ -1,17 +1,23 @@
-﻿using FoodManagement.Contracts;
-using FoodManagement.Models;
-using Microsoft.AspNetCore.Mvc.RazorPages;
+﻿// Pages/Dashboard/IndexModel.cs
+using System;
+using System.Collections.Generic;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
+using FoodManagement.Contracts;
+using FoodManagement.Models;
+using FoodManagement.Presenters;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace FoodManagement.Pages.Dashboard
 {
-    public class IndexModel : PageModel
+    public class IndexModel : PageModel, IDashboardView
     {
-        private readonly IDashboardService _statsService;
+        private readonly Func<IDashboardView, DashboardPresenter> _presenterFactory;
 
-        public IndexModel(IDashboardService statsService)
+        public IndexModel(Func<IDashboardView, DashboardPresenter> presenterFactory)
         {
-            _statsService = statsService ?? throw new ArgumentNullException(nameof(statsService));
+            _presenterFactory = presenterFactory ?? throw new ArgumentNullException(nameof(presenterFactory));
         }
 
         public string TodayRevenueJson { get; private set; } = "0";
@@ -19,6 +25,8 @@ namespace FoodManagement.Pages.Dashboard
         public string TopFoodsMonthJson { get; private set; } = "[]";
         public string TopUsersDayJson { get; private set; } = "[]";
         public string TopUsersMonthJson { get; private set; } = "[]";
+        public string TopPaymentsDayJson { get; private set; } = "[]";
+        public string TopPaymentsMonthJson { get; private set; } = "[]";
 
         public string TodayRevenueDisplay { get; private set; } = "0 VNĐ";
         public string? ErrorMessage { get; private set; }
@@ -31,32 +39,49 @@ namespace FoodManagement.Pages.Dashboard
 
         public async Task OnGetAsync(CancellationToken cancellationToken = default)
         {
-            try
-            {
-                var todayRevenue = await _statsService.GetTodayRevenueAsync(cancellationToken).ConfigureAwait(false);
-                TodayRevenueJson = JsonSerializer.Serialize(todayRevenue, _camelOptions);
-                TodayRevenueDisplay = string.Format(System.Globalization.CultureInfo.GetCultureInfo("vi-VN"), "{0:N0} VNĐ", todayRevenue);
+            var presenter = _presenterFactory(this);
+            await presenter.LoadAsync(cancellationToken).ConfigureAwait(false);
+        }
 
-                var topFoodsDay = await _statsService.GetTopFoodsAsync(StatisticsRange.Day, 10, cancellationToken).ConfigureAwait(false);
-                TopFoodsTodayJson = JsonSerializer.Serialize(topFoodsDay ?? Enumerable.Empty<object>(), _camelOptions);
+        void IDashboardView.ShowTodayRevenue(decimal amount)
+        {
+            TodayRevenueJson = JsonSerializer.Serialize(amount, _camelOptions);
+            TodayRevenueDisplay = string.Format(System.Globalization.CultureInfo.GetCultureInfo("vi-VN"), "{0:N0} VNĐ", amount);
+        }
 
-                var topFoodsMonth = await _statsService.GetTopFoodsAsync(StatisticsRange.Month, 10, cancellationToken).ConfigureAwait(false);
-                TopFoodsMonthJson = JsonSerializer.Serialize(topFoodsMonth ?? Enumerable.Empty<object>(), _camelOptions);
+        void IDashboardView.ShowTopFoodsDay(IEnumerable<TopFoodStat> items)
+        {
+            TopFoodsTodayJson = JsonSerializer.Serialize(items ?? Array.Empty<TopFoodStat>(), _camelOptions);
+        }
 
-                var topUsersDay = await _statsService.GetTopUsersAsync(StatisticsRange.Day, 10, cancellationToken).ConfigureAwait(false);
-                TopUsersDayJson = JsonSerializer.Serialize(topUsersDay ?? Enumerable.Empty<object>(), _camelOptions);
+        void IDashboardView.ShowTopFoodsMonth(IEnumerable<TopFoodStat> items)
+        {
+            TopFoodsMonthJson = JsonSerializer.Serialize(items ?? Array.Empty<TopFoodStat>(), _camelOptions);
+        }
 
-                var topUsersMonth = await _statsService.GetTopUsersAsync(StatisticsRange.Month, 10, cancellationToken).ConfigureAwait(false);
-                TopUsersMonthJson = JsonSerializer.Serialize(topUsersMonth ?? Enumerable.Empty<object>(), _camelOptions);
-            }
-            catch (OperationCanceledException)
-            {
-                ErrorMessage = "Yêu cầu bị huỷ.";
-            }
-            catch (Exception ex)
-            {
-                ErrorMessage = "Không tải được số liệu: " + ex.Message;
-            }
+        void IDashboardView.ShowTopUsersDay(IEnumerable<TopUserStat> items)
+        {
+            TopUsersDayJson = JsonSerializer.Serialize(items ?? Array.Empty<TopUserStat>(), _camelOptions);
+        }
+
+        void IDashboardView.ShowTopUsersMonth(IEnumerable<TopUserStat> items)
+        {
+            TopUsersMonthJson = JsonSerializer.Serialize(items ?? Array.Empty<TopUserStat>(), _camelOptions);
+        }
+
+        void IDashboardView.ShowPreferredPaymentsDay(IEnumerable<PaymentMethodStat> items)
+        {
+            TopPaymentsDayJson = JsonSerializer.Serialize(items ?? Array.Empty<PaymentMethodStat>(), _camelOptions);
+        }
+
+        void IDashboardView.ShowPreferredPaymentsMonth(IEnumerable<PaymentMethodStat> items)
+        {
+            TopPaymentsMonthJson = JsonSerializer.Serialize(items ?? Array.Empty<PaymentMethodStat>(), _camelOptions);
+        }
+
+        void IDashboardView.ShowError(string error)
+        {
+            ErrorMessage = error;
         }
     }
 }

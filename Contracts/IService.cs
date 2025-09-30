@@ -9,5 +9,6 @@ namespace FoodManagement.Contracts
         Task CreateAsync(T dto);
         Task UpdateAsync(T dto);
         Task DeleteAsync(string id);
+        Task<(IEnumerable<T> Items, PaginationInfo Pagination)> QueryAsync(string? searchTerm, string? sortColumn, string? sortOrder, int page, int pageSize);
     }
 }

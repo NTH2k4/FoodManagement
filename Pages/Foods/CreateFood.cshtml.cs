@@ -2,16 +2,19 @@
 using FoodManagement.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using System;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace FoodManagement.Pages.Foods
 {
-    public class CreateFoodModel : PageModel
+    public class CreateFoodModel : PageModel, ICreateView
     {
-        private readonly IService<FoodDto> _service;
+        private readonly Func<ICreateView, IPresenter<FoodDto>> _presenterFactory;
 
-        public CreateFoodModel(IService<FoodDto> service)
+        public CreateFoodModel(Func<ICreateView, IPresenter<FoodDto>> presenterFactory)
         {
-            _service = service;
+            _presenterFactory = presenterFactory ?? throw new ArgumentNullException(nameof(presenterFactory));
         }
 
         [BindProperty]
@@ -37,6 +40,7 @@ namespace FoodManagement.Pages.Foods
         {
             if (!ModelState.IsValid)
             {
+                Error = "Vui lòng kiểm tra lại thông tin.";
                 return Page();
             }
 
@@ -53,9 +57,11 @@ namespace FoodManagement.Pages.Foods
                     .ToList();
             }
 
+            var presenter = _presenterFactory(this);
             try
             {
-                await _service.CreateAsync(Food);
+                await presenter.CreateItemAsync(Food);
+                if (!string.IsNullOrEmpty(Error)) return Page();
                 Message = "Tạo món ăn thành công.";
                 return RedirectToPage("./FoodPage");
             }
@@ -64,6 +70,31 @@ namespace FoodManagement.Pages.Foods
                 Error = $"Lỗi khi tạo món ăn: {ex.Message}";
                 return Page();
             }
+        }
+
+        public void ShowMessage(string message)
+        {
+            Message = message;
+        }
+
+        public void ShowError(string error)
+        {
+            Error = error;
+        }
+
+        public void ShowValidationErrors(System.Collections.Generic.IDictionary<string, string> fieldErrors)
+        {
+            if (fieldErrors == null) return;
+            foreach (var kv in fieldErrors)
+            {
+                ModelState.AddModelError(kv.Key ?? string.Empty, kv.Value ?? string.Empty);
+            }
+        }
+
+        public Task RedirectToListAsync()
+        {
+            Response.Redirect(Url.Page("./FoodPage") ?? "/");
+            return Task.CompletedTask;
         }
     }
 }

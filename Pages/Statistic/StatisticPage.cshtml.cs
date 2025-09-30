@@ -1,8 +1,9 @@
+using System;
 using System.Text.Json;
+using System.Threading.Tasks;
 using FoodManagement.Contracts;
 using FoodManagement.Models;
 using FoodManagement.Presenters;
-using FoodManagement.Services; // BookingStatisticsService
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Logging;
 
@@ -10,23 +11,19 @@ namespace FoodManagement.Pages.Statistic
 {
     public class StatisticPageModel : PageModel, IStatisticsView
     {
-        private readonly IStatisticsService _statsService;
+        private readonly Func<IStatisticsView, StatisticsPresenter> _presenterFactory;
         private readonly ILogger<StatisticPageModel> _logger;
 
-        public StatisticPageModel(IStatisticsService statsService, ILogger<StatisticPageModel> logger)
+        public StatisticPageModel(Func<IStatisticsView, StatisticsPresenter> presenterFactory, ILogger<StatisticPageModel> logger)
         {
-            _statsService = statsService;
-            _logger = logger;
+            _presenterFactory = presenterFactory ?? throw new ArgumentNullException(nameof(presenterFactory));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        // JSON strings passed to the client to render initial charts
         public string DailyJson { get; private set; } = "[]";
         public string MonthlyJson { get; private set; } = "[]";
-
-        // For simple user feedback
         public string? Error { get; private set; }
 
-        // Presenter will call these view methods
         public void ShowDaily(IEnumerable<RevenueStat> daily)
         {
             var opts = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
@@ -46,13 +43,11 @@ namespace FoodManagement.Pages.Statistic
 
         public async Task OnGetAsync()
         {
-            // Example: Last 30 days, and this year for monthly
             var todayUtc = DateTime.UtcNow.Date;
-            var fromUtc = todayUtc.AddDays(-29); // inclusive -> 30 days total
+            var fromUtc = todayUtc.AddDays(-29);
             var toUtc = todayUtc;
             var year = DateTime.UtcNow.Year;
-
-            var presenter = new StatisticsPresenter(_statsService, this);
+            var presenter = _presenterFactory(this);
             await presenter.LoadAsync(fromUtc, toUtc, year);
         }
     }

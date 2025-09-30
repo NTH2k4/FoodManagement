@@ -112,7 +112,10 @@ namespace FoodManagement.Repositories
         {
             if (string.IsNullOrEmpty(id)) return null;
 
-            if (_store.TryGetValue(id, out var cached)) return cached;
+            if (_store.TryGetValue(id, out var cached) && !string.IsNullOrEmpty(cached.passwordHashBase64) && !string.IsNullOrEmpty(cached.passwordSaltBase64))
+            {
+                return cached;
+            }
 
             var url = BuildUrl(id);
             var resp = await _httpClient.GetAsync(url, ct);
@@ -121,6 +124,16 @@ namespace FoodManagement.Repositories
             if (string.IsNullOrWhiteSpace(json) || json == "null") return null;
             var dto = JsonSerializer.Deserialize<AdminDto>(json, _jsonOptions);
             if (dto != null) dto.id ??= id;
+            if (dto != null && (string.IsNullOrEmpty(dto.passwordHashBase64) || string.IsNullOrEmpty(dto.passwordSaltBase64)))
+            {
+                var all = await GetSnapshotAsync(ct);
+                if (all.FirstOrDefault(a => a.id == id) is AdminDto fullDto)
+                {
+                    dto.passwordHashBase64 = fullDto.passwordHashBase64;
+                    dto.passwordSaltBase64 = fullDto.passwordSaltBase64;
+                }
+            }
+            _store[id] = dto!;
             return dto;
         }
 
@@ -142,6 +155,7 @@ namespace FoodManagement.Repositories
 
             var resp = await _httpClient.PutAsJsonAsync(BuildUrl(dto.id), dto, ct);
             resp.EnsureSuccessStatusCode();
+            _store[dto.id] = dto;
         }
 
         public async Task UpdateAsync(AdminDto dto, CancellationToken ct = default)
@@ -156,9 +170,28 @@ namespace FoodManagement.Repositories
             }
 
             dto.phone = normPhone;
+            var dtoToSend = new AdminDto
+            {
+                id = dto.id,
+                username = dto.username,
+                phone = dto.phone,
+                email = dto.email,
+                firstName = dto.firstName,
+                lastName = dto.lastName,
+                passwordHashBase64 = dto.passwordHashBase64,
+                passwordSaltBase64 = dto.passwordSaltBase64,
+                createdAt = dto.createdAt,
+                isActive = dto.isActive,
+                role = dto.role,
+                LastLoginAt = dto.LastLoginAt,
+                avatar = dto.avatar
+            };
 
-            var resp = await _httpClient.PutAsJsonAsync(BuildUrl(dto.id), dto, ct);
+            var resp = await _httpClient.PutAsJsonAsync(BuildUrl(dto.id), dtoToSend, ct);
             resp.EnsureSuccessStatusCode();
+
+            _store[dto.id] = dtoToSend;
+            RealtimeUpdated?.Invoke(this, new RealtimeUpdatedEventArgs<AdminDto>(_store.Values.ToList()));
         }
 
         public async Task DeleteAsync(string id, CancellationToken ct = default)
@@ -166,6 +199,7 @@ namespace FoodManagement.Repositories
             if (string.IsNullOrEmpty(id)) return;
             var resp = await _httpClient.DeleteAsync(BuildUrl(id), ct);
             resp.EnsureSuccessStatusCode();
+            _store.TryRemove(id, out _);
         }
 
         public async Task<AdminDto?> GetByUsernameAsync(string username, CancellationToken ct = default)
@@ -202,7 +236,6 @@ namespace FoodManagement.Repositories
                         await Task.Delay(TimeSpan.FromSeconds(10), _cts.Token);
                         if (DateTime.UtcNow - _lastPush > TimeSpan.FromSeconds(30))
                         {
-                            _logger.LogInformation("AdminRepo fallback snapshot fetch");
                             var all = await GetSnapshotAsync(_cts.Token);
                             RealtimeUpdated?.Invoke(this, new RealtimeUpdatedEventArgs<AdminDto>(all));
                             _lastPush = DateTime.UtcNow;
@@ -216,7 +249,6 @@ namespace FoodManagement.Repositories
                 }
             }, _cts.Token);
 
-            _logger.LogInformation("AdminRepo listening started");
             return Task.CompletedTask;
         }
 
@@ -249,10 +281,7 @@ namespace FoodManagement.Repositories
                 var json = await resp.Content.ReadAsStringAsync(ct);
                 if (string.IsNullOrWhiteSpace(json) || json == "null")
                 {
-                    lock (_storeLock)
-                    {
-                        _store.Clear();
-                    }
+                    lock (_storeLock) _store.Clear();
                     return Array.Empty<AdminDto>();
                 }
 
@@ -263,17 +292,10 @@ namespace FoodManagement.Repositories
 
                 foreach (var prop in root.EnumerateObject())
                 {
-                    try
-                    {
-                        var dto = JsonSerializer.Deserialize<AdminDto>(prop.Value.GetRawText(), _jsonOptions);
-                        if (dto == null) continue;
-                        dto.id ??= prop.Name;
-                        temp[prop.Name] = dto;
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogDebug(ex, "Failed to parse admin {id}", prop.Name);
-                    }
+                    var dto = JsonSerializer.Deserialize<AdminDto>(prop.Value.GetRawText(), _jsonOptions);
+                    if (dto == null) continue;
+                    dto.id ??= prop.Name;
+                    temp[prop.Name] = dto;
                 }
 
                 lock (_storeLock)
@@ -298,10 +320,8 @@ namespace FoodManagement.Repositories
             try
             {
                 MarkPush();
-
                 var path = (evt.Path ?? "/").Trim();
                 if (string.IsNullOrEmpty(path)) path = "/";
-
                 if (path == "/")
                 {
                     ApplyFullSnapshot(evt.RawData);
@@ -320,24 +340,12 @@ namespace FoodManagement.Repositories
                         return;
                     }
 
-                    try
+                    var dto = JsonSerializer.Deserialize<AdminDto>(evt.RawData, _jsonOptions);
+                    if (dto != null)
                     {
-                        var dto = JsonSerializer.Deserialize<AdminDto>(evt.RawData, _jsonOptions);
-                        if (dto != null)
-                        {
-                            dto.id ??= adminId;
-                            _store[adminId] = dto;
-                            RealtimeUpdated?.Invoke(this, new RealtimeUpdatedEventArgs<AdminDto>(_store.Values.ToList()));
-                            return;
-                        }
-
-                        using var doc = JsonDocument.Parse($"{{ \"{adminId}\": {evt.RawData} }}");
-                        ApplyMergePatch(doc.RootElement);
+                        dto.id ??= adminId;
+                        _store[adminId] = dto;
                         RealtimeUpdated?.Invoke(this, new RealtimeUpdatedEventArgs<AdminDto>(_store.Values.ToList()));
-                    }
-                    catch (JsonException je)
-                    {
-                        _logger.LogWarning(je, "Failed to parse SSE payload for admin {id}", adminId);
                     }
                 }
             }
@@ -351,12 +359,7 @@ namespace FoodManagement.Repositories
         {
             if (string.IsNullOrWhiteSpace(rawData) || rawData == "null")
             {
-                if (_store.Count > 0)
-                {
-                    return;
-                }
-
-                lock (_storeLock) { _store.Clear(); }
+                lock (_storeLock) _store.Clear();
                 return;
             }
 
@@ -367,17 +370,10 @@ namespace FoodManagement.Repositories
             var temp = new Dictionary<string, AdminDto>(StringComparer.Ordinal);
             foreach (var prop in root.EnumerateObject())
             {
-                try
-                {
-                    var dto = JsonSerializer.Deserialize<AdminDto>(prop.Value.GetRawText(), _jsonOptions);
-                    if (dto == null) continue;
-                    dto.id ??= prop.Name;
-                    temp[prop.Name] = dto;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogDebug(ex, "Failed to parse admin {id} in full snapshot", prop.Name);
-                }
+                var dto = JsonSerializer.Deserialize<AdminDto>(prop.Value.GetRawText(), _jsonOptions);
+                if (dto == null) continue;
+                dto.id ??= prop.Name;
+                temp[prop.Name] = dto;
             }
 
             lock (_storeLock)
@@ -401,17 +397,12 @@ namespace FoodManagement.Repositories
                     continue;
                 }
 
-                try
+                var dto = JsonSerializer.Deserialize<AdminDto>(value.GetRawText(), _jsonOptions);
+                if (dto != null)
                 {
-                    var dto = JsonSerializer.Deserialize<AdminDto>(value.GetRawText(), _jsonOptions);
-                    if (dto != null)
-                    {
-                        dto.id ??= adminId;
-                        _store[adminId] = dto;
-                        continue;
-                    }
+                    dto.id ??= adminId;
+                    _store[adminId] = dto;
                 }
-                catch { }
             }
         }
 

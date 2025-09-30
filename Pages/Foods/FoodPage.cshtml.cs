@@ -1,15 +1,22 @@
 ﻿using FoodManagement.Contracts;
 using FoodManagement.Models;
-using FoodManagement.Presenters;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace FoodManagement.Pages.Foods
 {
-    public class FoodPageModel(IService<FoodDto> service) : PageModel, IListView<FoodDto>
+    public class FoodPageModel : PageModel, IListView<FoodDto>
     {
-        private readonly IService<FoodDto> _service = service;
+        private readonly Func<IListView<FoodDto>, IPresenter<FoodDto>> _presenterFactory;
         private IPresenter<FoodDto>? _presenter;
+
+        public FoodPageModel(Func<IListView<FoodDto>, IPresenter<FoodDto>> presenterFactory)
+        {
+            _presenterFactory = presenterFactory ?? throw new ArgumentNullException(nameof(presenterFactory));
+        }
 
         private IEnumerable<FoodDto> _allFoods = new List<FoodDto>();
         public IEnumerable<FoodDto> Foods { get; private set; } = new List<FoodDto>();
@@ -31,7 +38,7 @@ namespace FoodManagement.Pages.Foods
         public string? SortOrder { get; set; }
 
         [BindProperty(SupportsGet = true)]
-        public string? SearchTerm { get; set; } // Thêm thuộc tính tìm kiếm
+        public string? SearchTerm { get; set; }
 
         [BindProperty]
         public string? DeleteId { get; set; }
@@ -40,45 +47,8 @@ namespace FoodManagement.Pages.Foods
 
         public async Task OnGetAsync()
         {
-            _presenter = new FoodPresenter(_service, this);
-            await _presenter.LoadItemsAsync();
-
-            var foods = _allFoods;
-            // Lọc theo SearchTerm nếu có
-            if (!string.IsNullOrWhiteSpace(SearchTerm))
-            {
-                foods = foods.Where(f => !string.IsNullOrEmpty(f.name) && f.name.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase));
-            }
-            if (!string.IsNullOrEmpty(SortColumn) && !string.IsNullOrEmpty(SortOrder))
-            {
-                foods = SortFoods(foods, SortColumn, SortOrder);
-            }
-
-            var totalItems = foods.Count();
-            var totalPages = PageSize > 0 ? (int)Math.Ceiling((double)totalItems / PageSize) : 0;
-            if (pages < 1) pages = 1;
-            if (pages > totalPages && totalPages > 0) pages = totalPages;
-
-            Pagination = new PaginationInfo
-            {
-                TotalItems = totalItems,
-                PageSize = PageSize,
-                CurrentPage = pages
-            };
-            Foods = foods.Skip((pages - 1) * PageSize).Take(PageSize).ToList();
-        }
-
-        private IEnumerable<FoodDto> SortFoods(IEnumerable<FoodDto> foods, string column, string order)
-        {
-            bool asc = order == "asc";
-            return column switch
-            {
-                "name" => asc ? foods.OrderBy(f => f.name) : foods.OrderByDescending(f => f.name),
-                "price" => asc ? foods.OrderBy(f => f.price) : foods.OrderByDescending(f => f.price),
-                "sale" => asc ? foods.OrderBy(f => f.sale) : foods.OrderByDescending(f => f.sale),
-                "popular" => asc ? foods.OrderBy(f => f.popular) : foods.OrderByDescending(f => f.popular),
-                _ => foods
-            };
+            _presenter = _presenterFactory(this);
+            await _presenter.LoadItemsAsync(SearchTerm, SortColumn, SortOrder, pages, PageSize);
         }
 
         public async Task<IActionResult> OnPostDeleteAsync()
@@ -89,17 +59,11 @@ namespace FoodManagement.Pages.Foods
             }
             else
             {
-                try
-                {
-                    await _service.DeleteAsync(DeleteId);
-                    Message = "Xóa món ăn thành công.";
-                }
-                catch (Exception ex)
-                {
-                    Error = $"Lỗi khi xóa: {ex.Message}";
-                }
+                _presenter ??= _presenterFactory(this);
+                await _presenter.DeleteItemAsync(DeleteId);
             }
-            return RedirectToPage(new {
+            return RedirectToPage(new
+            {
                 pages = pages,
                 PageSize = PageSize,
                 SortColumn = SortColumn,
@@ -108,12 +72,10 @@ namespace FoodManagement.Pages.Foods
             });
         }
 
-        // ===============================
-        // Implementation of IListView
-        // ===============================
         public void ShowItems(IEnumerable<FoodDto> foods)
         {
-            _allFoods = foods;
+            _allFoods = foods ?? Array.Empty<FoodDto>();
+            Foods = _allFoods;
         }
 
         public void ShowItemDetail(FoodDto food)
@@ -129,6 +91,11 @@ namespace FoodManagement.Pages.Foods
         public void ShowError(string error)
         {
             Error = error;
+        }
+
+        public void SetPagination(PaginationInfo pagination)
+        {
+            Pagination = pagination ?? new PaginationInfo();
         }
     }
 }
