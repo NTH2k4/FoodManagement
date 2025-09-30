@@ -4,6 +4,7 @@ using FoodManagement.Security;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 
 namespace FoodManagement.Services
@@ -45,6 +46,26 @@ namespace FoodManagement.Services
             var normPhone = dto.phone;
             if (!string.IsNullOrEmpty(normPhone) && all.Any(a => !string.IsNullOrEmpty(a.phone) && a.phone == normPhone))
                 throw new InvalidOperationException("Số điện thoại đang được sử dụng bởi tài khoản khác.");
+
+            if (string.IsNullOrWhiteSpace(dto.passwordHashBase64))
+            {
+                var pwdProp = dto.GetType().GetProperty("password", BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+                if (pwdProp != null)
+                {
+                    var plain = pwdProp.GetValue(dto) as string;
+                    if (!string.IsNullOrWhiteSpace(plain))
+                    {
+                        var (hashBase64, saltBase64) = _hasher.HashPassword(plain);
+                        dto.passwordHashBase64 = hashBase64;
+                        dto.passwordSaltBase64 = saltBase64;
+                        if (pwdProp.CanWrite) pwdProp.SetValue(dto, null);
+                    }
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(dto.passwordHashBase64))
+                throw new InvalidOperationException("Mật khẩu không hợp lệ.");
+
             await _repo.CreateAsync(dto);
         }
 
@@ -57,12 +78,43 @@ namespace FoodManagement.Services
             dto.email = string.IsNullOrWhiteSpace(dto.email) ? null : NormalizeString(dto.email);
             dto.firstName = NormalizeString(dto.firstName);
             dto.lastName = NormalizeString(dto.lastName);
+
+            var existing = await _repo.GetByIdAsync(dto.id);
+            if (existing == null) throw new InvalidOperationException("Không tìm thấy tài khoản để cập nhật.");
+
             var all = (await _repo.GetAllAsync()) ?? Array.Empty<AdminDto>();
             if (all.Any(a => !string.IsNullOrEmpty(a.username) && a.username.Equals(dto.username, StringComparison.OrdinalIgnoreCase) && a.id != dto.id))
                 throw new InvalidOperationException("Tên đăng nhập đang được sử dụng bởi tài khoản khác.");
             var normPhone = dto.phone;
             if (!string.IsNullOrEmpty(normPhone) && all.Any(a => !string.IsNullOrEmpty(a.phone) && a.phone == normPhone && a.id != dto.id))
                 throw new InvalidOperationException("Số điện thoại đang được sử dụng bởi tài khoản khác.");
+
+            var pwdProp = dto.GetType().GetProperty("password", BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+            if (pwdProp != null)
+            {
+                var plain = pwdProp.GetValue(dto) as string;
+                if (!string.IsNullOrWhiteSpace(plain))
+                {
+                    var (hashBase64, saltBase64) = _hasher.HashPassword(plain);
+                    dto.passwordHashBase64 = hashBase64;
+                    dto.passwordSaltBase64 = saltBase64;
+                    if (pwdProp.CanWrite) pwdProp.SetValue(dto, null);
+                }
+                else
+                {
+                    dto.passwordHashBase64 = existing.passwordHashBase64;
+                    dto.passwordSaltBase64 = existing.passwordSaltBase64;
+                }
+            }
+            else
+            {
+                if (string.IsNullOrWhiteSpace(dto.passwordHashBase64))
+                {
+                    dto.passwordHashBase64 = existing.passwordHashBase64;
+                    dto.passwordSaltBase64 = existing.passwordSaltBase64;
+                }
+            }
+
             await _repo.UpdateAsync(dto);
         }
 
@@ -106,7 +158,7 @@ namespace FoodManagement.Services
                 };
             }
             var totalItems = q.Count();
-            if (pageSize <= 0) pageSize = 20;
+            if (pageSize <= 0) pageSize = 10;
             if (page <= 0) page = 1;
             var totalPages = pageSize > 0 ? (int)Math.Ceiling((double)totalItems / pageSize) : 0;
             if (totalPages < 1) totalPages = 1;

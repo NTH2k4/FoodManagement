@@ -24,16 +24,16 @@ namespace FoodManagement.Pages.Accounts.Admin
         public IEnumerable<AdminDto> Admins { get; set; } = new List<AdminDto>();
 
         [TempData]
-        public string? StatusMessage { get; set; }
+        public string? Message { get; set; }
 
         [TempData]
-        public string? ErrorMessage { get; set; }
+        public string? Error { get; set; }
 
         [BindProperty(SupportsGet = true)]
         public string? SearchTerm { get; set; }
 
         [BindProperty(SupportsGet = true)]
-        public int PageSize { get; set; } = 20;
+        public int PageSize { get; set; } = 10;
 
         [BindProperty(SupportsGet = true)]
         public int Page { get; set; } = 1;
@@ -65,7 +65,7 @@ namespace FoodManagement.Pages.Accounts.Admin
         {
             _presenter ??= _presenterFactory(this);
             await _presenter.CreateItemAsync(Input);
-            if (!string.IsNullOrEmpty(ErrorMessage)) return Page();
+            if (!string.IsNullOrEmpty(Error)) return Page();
             return RedirectToPage();
         }
 
@@ -73,21 +73,21 @@ namespace FoodManagement.Pages.Accounts.Admin
         {
             _presenter ??= _presenterFactory(this);
             await _presenter.UpdateItemAsync(Input);
-            if (!string.IsNullOrEmpty(ErrorMessage)) return Page();
+            if (!string.IsNullOrEmpty(Error)) return Page();
             return RedirectToPage();
         }
 
         public async Task<IActionResult> OnPostDeleteAsync([FromForm] string id)
         {
-            if (string.IsNullOrWhiteSpace(id))
+            if (string.IsNullOrWhiteSpace(DeleteId))
             {
-                ErrorMessage = "ID không hợp lệ.";
+                Error = "ID không hợp lệ.";
                 return RedirectToPage(new { pages = Page, PageSize = PageSize, SortColumn = SortColumn, SortOrder = SortOrder, SearchTerm = SearchTerm });
             }
             _presenter ??= _presenterFactory(this);
-            await _presenter.DeleteItemAsync(id);
-            if (!string.IsNullOrEmpty(ErrorMessage)) return RedirectToPage();
-            StatusMessage = "Xóa admin thành công.";
+            await _presenter.DeleteItemAsync(DeleteId);
+            if (!string.IsNullOrEmpty(Error)) return RedirectToPage();
+            Message = "Xóa admin thành công.";
             return RedirectToPage(new { pages = Page, PageSize = PageSize, SortColumn = SortColumn, SortOrder = SortOrder, SearchTerm = SearchTerm });
         }
 
@@ -103,12 +103,12 @@ namespace FoodManagement.Pages.Accounts.Admin
 
         public void ShowMessage(string message)
         {
-            StatusMessage = message;
+            Message = message;
         }
 
         public void ShowError(string error)
         {
-            ErrorMessage = error;
+            Error = error;
         }
 
         public void SetPagination(PaginationInfo pagination)

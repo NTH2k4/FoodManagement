@@ -5,12 +5,12 @@
     var a = Model.Admin;
 }
 
-<div class="container-p-y">
+<div class="container py-3">
     <div class="card">
         <div class="card-body">
             @if (!string.IsNullOrEmpty(Model.Message))
             {
-                <div class="alert alert-success">@Model.Message</div>
+                <div id="alert" class="alert alert-success">@Model.Message</div>
             }
             @if (a == null)
             {
@@ -65,3 +65,17 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        function hideAlertsOnce() {
+            document.querySelectorAll('.alert').forEach(alert => {
+                alert.classList.add('fade');
+                setTimeout(() => {
+                    if (alert && alert.parentNode) alert.parentNode.removeChild(alert);
+                }, 500);
+            });
+        }
+        setTimeout(hideAlertsOnce, 3000);
+    </script>
+}
