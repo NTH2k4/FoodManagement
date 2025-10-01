@@ -1,59 +1,72 @@
 ﻿using FoodManagement.Contracts;
 using FoodManagement.Models;
+using System;
+using System.Threading.Tasks;
 
 namespace FoodManagement.Presenters
 {
     public class AdminPresenter : IPresenter<AdminDto>
     {
-        private readonly IService<AdminDto> _service;
+        private readonly IAdminService _service;
         private readonly IListView<AdminDto> _view;
 
-        public AdminPresenter(IService<AdminDto> service, IListView<AdminDto> view)
+        public AdminPresenter(IAdminService service, IListView<AdminDto> view)
         {
             _service = service;
             _view = view;
+        }
+
+        public async Task LoadItemsAsync(string? searchTerm, string? sortColumn, string? sortOrder, int page, int pageSize)
+        {
+            try
+            {
+                var (items, pagination) = await _service.QueryAsync(searchTerm, sortColumn, sortOrder, page, pageSize);
+                _view.ShowItems(items ?? Array.Empty<AdminDto>());
+                if (pagination != null) _view.SetPagination(pagination);
+            }
+            catch (Exception ex)
+            {
+                _view.ShowError(ex.Message);
+            }
         }
 
         public async Task LoadItemByIdAsync(string id)
         {
             try
             {
-                var admin = await _service.GetByIdAsync(id);
-                if (admin != null)
-                    _view.ShowItemDetail(admin);
-                else
-                    _view.ShowMessage("Không tìm thấy quản trị viên.");
+                var dto = await _service.GetByIdAsync(id);
+                if (dto != null) _view.ShowItemDetail(dto);
+                else _view.ShowMessage("Không tìm thấy admin.");
             }
             catch (Exception ex)
             {
-                _view.ShowError($"Lỗi khi tải chi tiết: {ex.Message}");
-            }
-        }
-
-        public async Task LoadItemsAsync()
-        {
-            try
-            {
-                var admins = await _service.GetAllAsync();
-                _view.ShowItems(admins);
-            }
-            catch (Exception ex)
-            {
-                _view.ShowError($"Lỗi khi tải danh sách: {ex.Message}");
+                _view.ShowError(ex.Message);
             }
         }
 
         public async Task CreateItemAsync(AdminDto dto)
         {
-            try 
+            try
             {
                 await _service.CreateAsync(dto);
-                _view.ShowMessage("Thêm quản trị viên thành công.");
-                await LoadItemsAsync();
+                _view.ShowMessage("Tạo admin thành công.");
             }
             catch (Exception ex)
             {
-                _view.ShowError($"Lỗi khi thêm: {ex.Message}");
+                _view.ShowError(ex.Message);
+            }
+        }
+
+        public async Task UpdateItemAsync(AdminDto dto)
+        {
+            try
+            {
+                await _service.UpdateAsync(dto);
+                _view.ShowMessage("Cập nhật admin thành công.");
+            }
+            catch (Exception ex)
+            {
+                _view.ShowError(ex.Message);
             }
         }
 
@@ -62,27 +75,26 @@ namespace FoodManagement.Presenters
             try
             {
                 await _service.DeleteAsync(id);
-                _view.ShowMessage("Xoá quản trị viên thành công.");
-                await LoadItemsAsync();
+                _view.ShowMessage("Xóa admin thành công.");
             }
             catch (Exception ex)
             {
-                _view.ShowError($"Lỗi khi xoá: {ex.Message}");
+                _view.ShowError(ex.Message);
             }
         }
 
-        public async Task UpdateItemAsync(AdminDto dto)
+        public async Task ChangePasswordAsync(string adminId, string currentPassword, string newPassword)
         {
-            try 
+            try
             {
-                await _service.UpdateAsync(dto);
-                _view.ShowMessage("Cập nhật quản trị viên thành công.");
-                await LoadItemsAsync();
+                await _service.ChangePasswordAsync(adminId, currentPassword, newPassword);
             }
             catch (Exception ex)
             {
-                _view.ShowError($"Lỗi khi cập nhật: {ex.Message}");
+                throw new InvalidOperationException(ex.Message);
             }
         }
+
+        public Task StopRealtimeAsync() => Task.CompletedTask;
     }
 }

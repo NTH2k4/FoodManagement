@@ -1,26 +1,26 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
 using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Text;
 using System.Threading.Tasks;
 using FoodManagement.Contracts;
 using FoodManagement.Models;
+using FoodManagement.Presenters;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Logging;
 
 namespace FoodManagement.Pages.Login
 {
-    public class ChangePasswordModel : PageModel
+    public class ChangePasswordModel : PageModel, IEditView<AdminDto>
     {
-        private readonly IService<AdminDto> _service;
+        private readonly Func<IEditView<AdminDto>, IPresenter<AdminDto>> _presenterFactory;
+        private IPresenter<AdminDto>? _presenter;
         private readonly ILogger<ChangePasswordModel> _logger;
 
-        public ChangePasswordModel(IService<AdminDto> service, ILogger<ChangePasswordModel> logger)
+        public ChangePasswordModel(Func<IEditView<AdminDto>, IPresenter<AdminDto>> presenterFactory, ILogger<ChangePasswordModel> logger)
         {
-            _service = service;
+            _presenterFactory = presenterFactory ?? throw new ArgumentNullException(nameof(presenterFactory));
             _logger = logger;
         }
 
@@ -53,10 +53,6 @@ namespace FoodManagement.Pages.Login
         {
             var userId = GetUserIdFromClaims();
             if (string.IsNullOrEmpty(userId)) return RedirectToPage("/Login/Login");
-
-            Admin = await _service.GetByIdAsync(userId);
-            if (Admin == null) return RedirectToPage("/Login/Login");
-
             return Page();
         }
 
@@ -71,86 +67,71 @@ namespace FoodManagement.Pages.Login
             var userId = GetUserIdFromClaims();
             if (string.IsNullOrEmpty(userId)) return RedirectToPage("/Login/Login");
 
-            Admin = await _service.GetByIdAsync(userId);
-            if (Admin == null)
-            {
-                Error = "Không tìm thấy tài khoản.";
-                return Page();
-            }
+            _presenter ??= _presenterFactory(this);
 
             try
             {
-                // Verify current password
-                if (!VerifyPassword(CurrentPassword, Admin.passwordSaltBase64, Admin.passwordHashBase64))
+                if (_presenter is AdminPresenter ap)
                 {
-                    ModelState.AddModelError(nameof(CurrentPassword), "Mật khẩu hiện tại không đúng.");
-                    return Page();
+                    await ap.ChangePasswordAsync(userId, CurrentPassword, NewPassword);
+                    Console.WriteLine("OKKKK", userId);
+                }
+                else
+                {
+                    await _presenter.LoadItemByIdAsync(userId);
+                    Console.WriteLine("Wrong...", userId);
                 }
 
-                // Generate new salt + hash
-                var newSalt = GenerateSalt();
-                var newHash = HashPassword(NewPassword, newSalt);
-
-                Admin.passwordSaltBase64 = Convert.ToBase64String(newSalt);
-                Admin.passwordHashBase64 = Convert.ToBase64String(newHash);
-
-                await _service.UpdateAsync(Admin);
-
-                Message = "Đổi mật khẩu thành công.";
-                return RedirectToPage("/Dashboard/Account");
+                TempData["Message"] = "Đổi mật khẩu thành công.";
+                return RedirectToPage("/Login/Account");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error while changing password for user {UserId}", userId);
-                Error = "Đã xảy ra lỗi khi đổi mật khẩu. Vui lòng thử lại.";
+                Error = "Đổi mật khẩu thất bại: " + ex.Message;
                 return Page();
             }
+        }
+
+        public void ShowItemDetail(AdminDto item)
+        {
+            Admin = item;
+        }
+
+        public void ShowMessage(string message)
+        {
+            Message = message;
+        }
+
+        public void ShowError(string error)
+        {
+            Error = error;
+        }
+
+        public void ShowValidationErrors(IDictionary<string, string> fieldErrors)
+        {
+            if (fieldErrors == null) return;
+            foreach (var kv in fieldErrors)
+            {
+                ModelState.AddModelError(kv.Key ?? string.Empty, kv.Value ?? string.Empty);
+            }
+        }
+
+        public Task RedirectToListAsync()
+        {
+            Response.Redirect(Url.Page("/Login/Account") ?? "/");
+            return Task.CompletedTask;
         }
 
         private string? GetUserIdFromClaims()
         {
             var cid = User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (!string.IsNullOrWhiteSpace(cid)) return cid;
-
             cid = User?.FindFirst("id")?.Value;
             if (!string.IsNullOrWhiteSpace(cid)) return cid;
-
             cid = User?.FindFirst("sub")?.Value;
             if (!string.IsNullOrWhiteSpace(cid)) return cid;
-
             return User?.Identity?.Name;
-        }
-
-        // --- Password helpers (PBKDF2 HMACSHA256) ---
-        private static byte[] GenerateSalt(int length = 16)
-        {
-            var salt = new byte[length];
-            using var rng = RandomNumberGenerator.Create();
-            rng.GetBytes(salt);
-            return salt;
-        }
-
-        private static byte[] HashPassword(string password, byte[] salt, int iterations = 150000, int outBytes = 32)
-        {
-            if (password == null) throw new ArgumentNullException(nameof(password));
-            using var pbkdf2 = new Rfc2898DeriveBytes(password, salt, iterations, HashAlgorithmName.SHA256);
-            return pbkdf2.GetBytes(outBytes);
-        }
-
-        private static bool VerifyPassword(string providedPassword, string? saltBase64, string? hashBase64, int iterations = 150000)
-        {
-            if (string.IsNullOrEmpty(saltBase64) || string.IsNullOrEmpty(hashBase64)) return false;
-            try
-            {
-                var salt = Convert.FromBase64String(saltBase64);
-                var expected = Convert.FromBase64String(hashBase64);
-                var actual = HashPassword(providedPassword, salt, iterations, expected.Length);
-                return CryptographicOperations.FixedTimeEquals(expected, actual);
-            }
-            catch
-            {
-                return false;
-            }
         }
     }
 }

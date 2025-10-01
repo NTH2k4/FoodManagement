@@ -1,0 +1,114 @@
+﻿@page
+@model FoodManagement.Pages.Accounts.Admin.EditAdminModel
+@{
+    ViewData["Title"] = "Chỉnh sửa quản trị viên";
+}
+
+<link rel="stylesheet" href="/assets/vendor/css/FormPage.css" />
+
+<div class="flex-grow-1 container-p-y page-content-padding">
+    <div class="card">
+        <div class="card-header d-flex align-items-center justify-content-between">
+            <h5 class="mb-0">Chỉnh sửa quản trị viên</h5>
+            <a class="btn btn-outline-secondary btn-sm" asp-page="./AdminPage">Quay về</a>
+        </div>
+        <div class="card-body">
+            @if (!string.IsNullOrEmpty(Model.Error))
+            {
+                <div class="alert alert-danger">@Model.Error</div>
+            }
+            @if (!string.IsNullOrEmpty(Model.Message))
+            {
+                <div class="alert alert-success">@Model.Message</div>
+            }
+
+            <form method="post" novalidate>
+                <input asp-for="Admin.id" type="hidden" />
+
+                <div asp-validation-summary="All" class="alert alert-danger" role="alert" style="display:@(ViewData.ModelState.IsValid ? "none" : "block")"></div>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Họ</label>
+                        <input asp-for="Admin.lastName" class="form-control" />
+                        <span asp-validation-for="Admin.lastName" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Tên</label>
+                        <input asp-for="Admin.firstName" class="form-control" />
+                        <span asp-validation-for="Admin.firstName" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Tài khoản (username)</label>
+                        <input asp-for="Admin.username" class="form-control" />
+                        <span asp-validation-for="Admin.username" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Số điện thoại</label>
+                        <input asp-for="Admin.phone"
+                               class="form-control"
+                               required
+                               type="text"
+                               maxlength="10"
+                               pattern="\d*"
+                               inputmode="numeric"
+                               oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10);" />
+                        <span asp-validation-for="Admin.phone" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Email</label>
+                        <input asp-for="Admin.email" class="form-control" />
+                        <span asp-validation-for="Admin.email" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Địa chỉ</label>
+                        <input asp-for="Admin.address" class="form-control" />
+                        <span asp-validation-for="Admin.address" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Quyền</label>
+                        <select asp-for="Admin.role" class="form-select">
+                            <option value="0" selected="@(Model.Admin.role == FoodManagement.Models.AdminRole.Staff ? "selected" : null)">Staff</option>
+                            <option value="1" selected="@(Model.Admin.role == FoodManagement.Models.AdminRole.SuperAdmin ? "selected" : null)">SuperAdmin</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Trạng thái hoạt động</label>
+                        <div class="form-check form-switch">
+                            <input asp-for="Admin.isActive" class="form-check-input" type="checkbox" />
+                            <label class="form-check-label">@((Model.Admin.isActive) ? "Hoạt động" : "Không hoạt động")</label>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Mật khẩu (để trống nếu không đổi)</label>
+                        <input asp-for="PlainPassword" class="form-control" type="password" />
+                        <span asp-validation-for="PlainPassword" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Xác nhận mật khẩu</label>
+                        <input asp-for="ConfirmPassword" class="form-control" type="password" />
+                        <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
+                    </div>
+
+                    <div class="col-12 d-flex gap-2 justify-content-end">
+                        <a class="btn btn-outline-secondary" asp-page="./AdminPage">Huỷ</a>
+                        <button type="submit" class="btn btn-primary">Lưu</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        setTimeout(() => {
+            document.querySelectorAll('.alert').forEach(alert => {
+                alert.classList.add('fade');
+                setTimeout(() => alert.remove(), 500);
+            });
+        }, 3000);
+    </script>
+    <partial name="_ValidationScriptsPartial" />
+}

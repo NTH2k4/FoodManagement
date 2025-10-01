@@ -1,33 +1,49 @@
 using FoodManagement.Contracts;
 using FoodManagement.Models;
-using FoodManagement.Repositories;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using System;
+using System.Threading.Tasks;
 
 namespace FoodManagement.Pages.Foods
 {
-    public class InfoFoodModel : PageModel
+    public class InfoFoodModel : PageModel, IListView<FoodDto>
     {
-        private readonly IRepository<FoodDto> _foodRepository;
+        private readonly Func<IListView<FoodDto>, IPresenter<FoodDto>> _presenterFactory;
+        private IPresenter<FoodDto>? _presenter;
 
-        public InfoFoodModel(IRepository<FoodDto> foodRepository)
+        public InfoFoodModel(Func<IListView<FoodDto>, IPresenter<FoodDto>> presenterFactory)
         {
-            _foodRepository = foodRepository;
+            _presenterFactory = presenterFactory ?? throw new ArgumentNullException(nameof(presenterFactory));
         }
 
         [BindProperty(SupportsGet = true)]
-        public int Id { get; set; }
+        public string? Id { get; set; }
 
         public FoodDto? Food { get; set; }
 
-        public async Task<IActionResult> OnGetAsync(int id)
+        public async Task<IActionResult> OnGetAsync(string id)
         {
-            Food = await _foodRepository.GetByIdAsync(id.ToString());
-            if (Food == null)
-            {
-                return Page();
-            }
+            if (string.IsNullOrWhiteSpace(id)) return Page();
+            _presenter ??= _presenterFactory(this);
+            await _presenter.LoadItemByIdAsync(id);
             return Page();
         }
+
+        public void ShowItems(System.Collections.Generic.IEnumerable<FoodDto> items) { }
+
+        public void ShowItemDetail(FoodDto item)
+        {
+            Food = item;
+        }
+
+        public void ShowMessage(string message) { }
+
+        public void ShowError(string error)
+        {
+            TempData["Error"] = error;
+        }
+
+        public void SetPagination(PaginationInfo pagination) { }
     }
 }

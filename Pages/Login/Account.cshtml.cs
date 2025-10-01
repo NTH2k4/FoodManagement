@@ -1,54 +1,63 @@
 using System;
-using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using FoodManagement.Contracts;
 using FoodManagement.Models;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace FoodManagement.Pages.Login
 {
-    public class AccountModel : PageModel
+    public class AccountModel : PageModel, IListView<AdminDto>
     {
-        private readonly IService<AdminDto> _service;
+        private readonly Func<IListView<AdminDto>, IPresenter<AdminDto>> _presenterFactory;
+        private IPresenter<AdminDto>? _presenter;
 
-        public AccountModel(IService<AdminDto> service)
+        public AccountModel(Func<IListView<AdminDto>, IPresenter<AdminDto>> presenterFactory)
         {
-            _service = service;
+            _presenterFactory = presenterFactory ?? throw new ArgumentNullException(nameof(presenterFactory));
         }
 
         public AdminDto? Admin { get; private set; }
+        public string? Message { get; private set; }
 
-        public async Task<IActionResult> OnGetAsync()
+        public async Task OnGetAsync()
         {
             var userId = GetUserIdFromClaims();
             if (string.IsNullOrEmpty(userId))
             {
-                return RedirectToPage("/Login/Login");
+                Response.Redirect("/Login/Login");
+                return;
             }
-
-            Admin = await _service.GetByIdAsync(userId);
-            if (Admin == null) return RedirectToPage("/Login/Login");
-
-            return Page();
+            _presenter ??= _presenterFactory(this);
+            await _presenter.LoadItemByIdAsync(userId);
+            Message = TempData["Message"] as string;
         }
+
+        public void ShowItems(System.Collections.Generic.IEnumerable<AdminDto> items) { }
+
+        public void ShowItemDetail(AdminDto item)
+        {
+            Admin = item;
+        }
+
+        public void ShowMessage(string message) { }
+
+        public void ShowError(string error)
+        {
+            TempData["Error"] = error;
+        }
+
+        public void SetPagination(PaginationInfo pagination) { }
 
         private string? GetUserIdFromClaims()
         {
-            // try common claim types
             var cid = User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (!string.IsNullOrWhiteSpace(cid)) return cid;
-
             cid = User?.FindFirst("id")?.Value;
             if (!string.IsNullOrWhiteSpace(cid)) return cid;
-
             cid = User?.FindFirst("sub")?.Value;
             if (!string.IsNullOrWhiteSpace(cid)) return cid;
-
-            // fallback to username - not ideal but better than nothing
-            var name = User?.Identity?.Name;
-            return name;
+            return User?.Identity?.Name;
         }
     }
 }

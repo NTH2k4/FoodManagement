@@ -1,16 +1,24 @@
-﻿using FoodManagement.Contracts;
+﻿// Pages/Feedbacks/FeedbackPageModel.cs
+using FoodManagement.Contracts;
 using FoodManagement.Models;
-using FoodManagement.Presenters;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace FoodManagement.Pages.Feedbacks
 {
     public class FeedbackPageModel : PageModel, IListView<FeedbackDto>
     {
-        private readonly IService<FeedbackDto> _service;
+        private readonly Func<IListView<FeedbackDto>, IPresenter<FeedbackDto>> _presenterFactory;
         private IPresenter<FeedbackDto>? _presenter;
-        private IEnumerable<FeedbackDto> _allFeedbacks = new List<FeedbackDto>();
+
+        public FeedbackPageModel(Func<IListView<FeedbackDto>, IPresenter<FeedbackDto>> presenterFactory)
+        {
+            _presenterFactory = presenterFactory ?? throw new ArgumentNullException(nameof(presenterFactory));
+        }
+
         public IEnumerable<FeedbackDto> Feedbacks { get; set; } = new List<FeedbackDto>();
 
         [TempData]
@@ -21,59 +29,30 @@ namespace FoodManagement.Pages.Feedbacks
 
         [BindProperty(SupportsGet = true)]
         public int Pages { get; set; } = 1;
+
         [BindProperty(SupportsGet = true)]
         public int PageSize { get; set; } = 10;
+
         [BindProperty(SupportsGet = true)]
         public string? SortColumn { get; set; }
+
         [BindProperty(SupportsGet = true)]
         public string? SortOrder { get; set; }
-        public string? SearchTerm { get; set; } // Thêm thuộc tính tìm kiếm
-        public PaginationInfo Pagination { get; set; } = new();
 
-        public FeedbackPageModel(IService<FeedbackDto> service)
-        {
-            _service = service;
-        }
+        [BindProperty(SupportsGet = true)]
+        public string? SearchTerm { get; set; }
+
+        public PaginationInfo Pagination { get; set; } = new();
 
         public async Task OnGetAsync()
         {
-            _presenter = new FeedbackPresenter(_service, this);
-            await _presenter.LoadItemsAsync();
-            var feedbacks = _allFeedbacks;
-            if (!string.IsNullOrWhiteSpace(SearchTerm))
-            {
-                feedbacks = feedbacks.Where(b => b.name != null && b.name.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase) || b.phone != null && b.phone.Contains(SearchTerm));
-            }
-            // Sorting
-            feedbacks = (SortColumn, SortOrder) switch
-            {
-                ("CustomerName", "asc") => feedbacks.OrderBy(b => b.name),
-                ("CustomerName", "desc") => feedbacks.OrderByDescending(b => b.name),
-                ("CreatedDate", "asc") => feedbacks.OrderBy(b => b.createdAt),
-                ("CreatedDate", "desc") => feedbacks.OrderByDescending(b => b.createdAt),
-                _ => feedbacks.OrderBy(b => b.id),
-            };
-            // Pagination
-            var count = feedbacks.Count();
-            var totalPages = (int)Math.Ceiling(count / (double)PageSize);
-            if (Pages < 1) Pages = 1;
-            else if (Pages > totalPages) Pages = totalPages;
-
-            Pagination = new PaginationInfo
-            {
-                CurrentPage = Pages,
-                PageSize = PageSize,
-                TotalItems = count,
-            };
-            Feedbacks = feedbacks.Skip((Pages - 1) * PageSize).Take(PageSize).ToList();
+            _presenter = _presenterFactory(this);
+            await _presenter.LoadItemsAsync(SearchTerm, SortColumn, SortOrder, Pages, PageSize);
         }
 
-        // ===============================
-        // Implementation of IListView
-        // ===============================
         public void ShowItems(IEnumerable<FeedbackDto> items)
         {
-            _allFeedbacks = items;
+            Feedbacks = items ?? Array.Empty<FeedbackDto>();
         }
 
         public void ShowItemDetail(FeedbackDto item)
@@ -89,6 +68,11 @@ namespace FoodManagement.Pages.Feedbacks
         public void ShowError(string error)
         {
             Error = error;
+        }
+
+        public void SetPagination(PaginationInfo pagination)
+        {
+            Pagination = pagination ?? new PaginationInfo();
         }
     }
 }

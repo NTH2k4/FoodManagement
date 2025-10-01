@@ -2,16 +2,20 @@
 using FoodManagement.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace FoodManagement.Pages.Foods
 {
-    public class EditModel : PageModel
+    public class EditModel : PageModel, IEditView<FoodDto>
     {
-        private readonly IService<FoodDto> _service;
+        private readonly Func<IEditView<FoodDto>, IPresenter<FoodDto>> _presenterFactory;
+        private IPresenter<FoodDto>? _presenter;
 
-        public EditModel(IService<FoodDto> service)
+        public EditModel(Func<IEditView<FoodDto>, IPresenter<FoodDto>> presenterFactory)
         {
-            _service = service;
+            _presenterFactory = presenterFactory ?? throw new ArgumentNullException(nameof(presenterFactory));
         }
 
         [BindProperty]
@@ -23,37 +27,52 @@ namespace FoodManagement.Pages.Foods
         [TempData]
         public string? Error { get; set; }
 
-        // Route expects id as route parameter /Foods/Edit/{id}
         public async Task<IActionResult> OnGetAsync(string id)
         {
-            if (string.IsNullOrEmpty(id))
-                return NotFound();
-
-            var dto = await _service.GetByIdAsync(id);
-            if (dto == null)
-                return NotFound();
-
-            Food = dto;
+            if (string.IsNullOrEmpty(id)) return NotFound();
+            _presenter ??= _presenterFactory(this);
+            await _presenter.LoadItemByIdAsync(id);
             return Page();
         }
 
         public async Task<IActionResult> OnPostAsync()
         {
-            if (!ModelState.IsValid)
-                return Page();
+            if (!ModelState.IsValid) return Page();
+            _presenter ??= _presenterFactory(this);
+            await _presenter.UpdateItemAsync(Food);
+            if (!string.IsNullOrEmpty(Error)) return Page();
+            Message = "Cập nhật món ăn thành công.";
+            return RedirectToPage("/Foods/FoodPage");
+        }
 
-            try
+        public void ShowItemDetail(FoodDto item)
+        {
+            Food = item ?? new FoodDto();
+        }
+
+        public void ShowMessage(string message)
+        {
+            Message = message;
+        }
+
+        public void ShowError(string error)
+        {
+            Error = error;
+        }
+
+        public void ShowValidationErrors(IDictionary<string, string> fieldErrors)
+        {
+            if (fieldErrors == null) return;
+            foreach (var kv in fieldErrors)
             {
-                await _service.UpdateAsync(Food);
-                Message = "Cập nhật món ăn thành công.";
-                return RedirectToPage("/Foods/FoodPage");
+                ModelState.AddModelError(kv.Key ?? string.Empty, kv.Value ?? string.Empty);
             }
-            catch (Exception ex)
-            {
-                // Log/handle as needed
-                Error = $"Lỗi khi cập nhật: {ex.Message}";
-                return Page();
-            }
+        }
+
+        public Task RedirectToListAsync()
+        {
+            Response.Redirect(Url.Page("/Foods/FoodPage") ?? "/");
+            return Task.CompletedTask;
         }
     }
 }

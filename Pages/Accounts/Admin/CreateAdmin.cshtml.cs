@@ -1,21 +1,20 @@
 ﻿using FoodManagement.Contracts;
 using FoodManagement.Models;
-using FoodManagement.Presenters;
-using FoodManagement.Security;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 
 namespace FoodManagement.Pages.Accounts.Admin
 {
-    public class CreateAdminModel : PageModel, IListView<AdminDto>
+    public class CreateAdminModel : PageModel, ICreateView
     {
-        private readonly Func<IListView<AdminDto>, AdminPresenter> _presenterFactory;
+        private readonly Func<ICreateView, IPresenter<AdminDto>> _presenterFactory;
         private readonly IPasswordHasher _hasher;
 
-        public CreateAdminModel(Func<IListView<AdminDto>, AdminPresenter> presenterFactory, IPasswordHasher hasher)
+        public CreateAdminModel(Func<ICreateView, IPresenter<AdminDto>> presenterFactory, IPasswordHasher hasher)
         {
             _presenterFactory = presenterFactory ?? throw new ArgumentNullException(nameof(presenterFactory));
             _hasher = hasher ?? throw new ArgumentNullException(nameof(hasher));
@@ -113,28 +112,22 @@ namespace FoodManagement.Pages.Accounts.Admin
                 };
 
                 var presenter = _presenterFactory(this);
-                await presenter.CreateItemAsync(admin).ConfigureAwait(false);
+                await presenter.CreateItemAsync(admin);
 
-                if (!string.IsNullOrEmpty(Error))
+                if (!ModelState.IsValid || !string.IsNullOrEmpty(Error))
                 {
                     return Page();
                 }
 
                 Message = "Tạo admin thành công.";
-                return RedirectToPage("./AdminPage");
+                await RedirectToListAsync();
+                return new EmptyResult();
             }
             catch (Exception ex)
             {
                 Error = "Lỗi khi tạo admin: " + ex.Message;
                 return Page();
             }
-        }
-
-        public void ShowItems(System.Collections.Generic.IEnumerable<AdminDto> items) { }
-
-        public void ShowItemDetail(AdminDto item)
-        {
-            ViewData["AdminDetail"] = item;
         }
 
         public void ShowMessage(string message)
@@ -145,6 +138,22 @@ namespace FoodManagement.Pages.Accounts.Admin
         public void ShowError(string error)
         {
             Error = error;
+        }
+
+        public void ShowValidationErrors(IDictionary<string, string> fieldErrors)
+        {
+            if (fieldErrors == null) return;
+            foreach (var kv in fieldErrors)
+            {
+                ModelState.AddModelError(kv.Key ?? string.Empty, kv.Value ?? string.Empty);
+            }
+        }
+
+        public Task RedirectToListAsync()
+        {
+            var url = Url.Page("./AdminPage") ?? "/";
+            Response.Redirect(url);
+            return Task.CompletedTask;
         }
     }
 }

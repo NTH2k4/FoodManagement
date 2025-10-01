@@ -1,7 +1,13 @@
 ﻿using FoodManagement.Contracts;
 using FoodManagement.Models;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace FoodManagement.Services
 {
@@ -18,17 +24,13 @@ namespace FoodManagement.Services
 
         public async Task<IEnumerable<RevenueStat>> GetDailyRevenueAsync(DateTime fromDateUtc, DateTime toDateUtc, CancellationToken ct = default)
         {
-            if (toDateUtc < fromDateUtc)
-                throw new ArgumentException("toDateUtc must be >= fromDateUtc");
-
-            var all = (await _repo.GetAllAsync(ct).ConfigureAwait(false)).ToList();
-
-            // map bookings to (dateUtc, amount)
+            if (toDateUtc < fromDateUtc) throw new ArgumentException("toDateUtc must be >= fromDateUtc");
+            var all = (await _repo.GetAllAsync().ConfigureAwait(false))?.ToList() ?? new List<BookingDto>();
             var pairs = all.Select(b =>
             {
                 var created = TryGetBookingCreatedAt(b);
                 var amount = TryGetBookingAmount(b);
-                return new { Created = created, Amount = amount, Booking = b };
+                return new { Created = created, Amount = amount };
             })
             .Where(x => x.Created.HasValue && x.Amount.HasValue)
             .Select(x => new { Date = x.Created.Value.Date, Amount = x.Amount.Value })
@@ -39,12 +41,11 @@ namespace FoodManagement.Services
                 .OrderBy(g => g.Key)
                 .Select(g => new RevenueStat
                 {
-                    Period = g.Key, // day midnight UTC
+                    Period = g.Key,
                     Total = g.Sum(i => i.Amount),
                     Count = g.Count()
                 }).ToList();
 
-            // ensure days with zero appear (optional)
             var results = new List<RevenueStat>();
             for (var day = fromDateUtc.Date; day <= toDateUtc.Date; day = day.AddDays(1))
             {
@@ -58,8 +59,7 @@ namespace FoodManagement.Services
 
         public async Task<IEnumerable<RevenueStat>> GetMonthlyRevenueAsync(int year, CancellationToken ct = default)
         {
-            var all = (await _repo.GetAllAsync(ct).ConfigureAwait(false)).ToList();
-
+            var all = (await _repo.GetAllAsync().ConfigureAwait(false))?.ToList() ?? new List<BookingDto>();
             var pairs = all.Select(b =>
             {
                 var created = TryGetBookingCreatedAt(b);
@@ -80,7 +80,6 @@ namespace FoodManagement.Services
                 })
                 .ToList();
 
-            // Ensure all months present (1..12)
             var results = new List<RevenueStat>();
             for (int m = 1; m <= 12; m++)
             {
@@ -92,14 +91,9 @@ namespace FoodManagement.Services
             return results;
         }
 
-        // -------------------------
-        // Helpers: extract createdAt and amount robustly
-        // -------------------------
         private static DateTime? TryGetBookingCreatedAt(BookingDto dto)
         {
             if (dto == null) return null;
-
-            // try common property names via reflection
             var t = dto.GetType();
             string[] names = new[] { "createdAt", "created_at", "timestamp", "created", "date", "createdOn" };
 
@@ -112,7 +106,6 @@ namespace FoodManagement.Services
 
                 if (val is long l)
                 {
-                    // assume milliseconds since epoch if > 10^11, else seconds
                     if (l > 9999999999L) return DateTimeOffset.FromUnixTimeMilliseconds(l).UtcDateTime;
                     return DateTimeOffset.FromUnixTimeSeconds(l).UtcDateTime;
                 }
@@ -134,7 +127,6 @@ namespace FoodManagement.Services
                 {
                     return parsed.ToUniversalTime();
                 }
-                // numeric strings
                 if (long.TryParse(s, out var l2))
                 {
                     if (l2 > 9999999999L) return DateTimeOffset.FromUnixTimeMilliseconds(l2).UtcDateTime;
@@ -142,7 +134,6 @@ namespace FoodManagement.Services
                 }
             }
 
-            // As fallback, try to interpret id if it's numeric and looks like timestamp (common pattern in your repo)
             var idProp = t.GetProperty("id", BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance);
             if (idProp != null)
             {
@@ -160,7 +151,6 @@ namespace FoodManagement.Services
         private static decimal? TryGetBookingAmount(BookingDto dto)
         {
             if (dto == null) return null;
-
             var t = dto.GetType();
             string[] names = new[] { "total", "amount", "price", "totalPrice", "grandTotal", "total_amount" };
 
@@ -179,11 +169,9 @@ namespace FoodManagement.Services
 
                 var s = val.ToString();
                 if (decimal.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out var parsed)) return parsed;
-                // try parse culture-specific
                 if (decimal.TryParse(s, NumberStyles.Any, CultureInfo.CurrentCulture, out parsed)) return parsed;
             }
 
-            // no amount field found
             return null;
         }
     }
