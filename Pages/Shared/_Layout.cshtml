@@ -11,7 +11,7 @@
     <meta name="viewport"
           content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0" />
 
-    <title>Dashboard</title>
+    <title>@ViewData["Title"]</title>
 
     <meta name="description" content="" />
 
@@ -245,22 +245,20 @@
                         </a>
                     </li>
                   
-                    <!-- Orther -->
+                    <!-- Other -->
                     <li class="menu-header small text-uppercase"><span class="menu-header-text">Khác</span></li>
-                    <li class="menu-item">
-                        <a href="https://github.com/themeselection/sneat-html-admin-template-free/issues"
-                           target="_blank"
+                    <li class="menu-item @(Context.Request.Path == "/Other/SupportPage" ? "active" : "")">
+                        <a asp-page="/Other/SupportPage"
                            class="menu-link">
                             <i class="menu-icon tf-icons bx bx-support"></i>
-                            <div data-i18n="Support">Hỗ trợ</div>
+                            <div data-i18n="">Hỗ trợ</div>
                         </a>
                     </li>
-                    <li class="menu-item">
-                        <a href="https://themeselection.com/demo/sneat-bootstrap-html-admin-template/documentation/"
-                           target="_blank"
+                    <li class="menu-item @(Context.Request.Path == "/Other/InfomationPage" ? "active" : "")">
+                        <a asp-page="/Other/InfomationPage"
                            class="menu-link">
                             <i class="menu-icon tf-icons bx bx-file"></i>
-                            <div data-i18n="Documentation">Thông tin</div>
+                            <div data-i18n="">Thông tin</div>
                         </a>
                     </li>
                 </ul>
