@@ -344,6 +344,16 @@
         // ==============================
         // Helpers
         // ==============================
+        function hideAlertsOnce() {
+            document.querySelectorAll('.alert').forEach(alert => {
+                alert.classList.add('fade');
+                setTimeout(() => {
+                    if (alert && alert.parentNode) alert.parentNode.removeChild(alert);
+                }, 500);
+            });
+        }
+        setTimeout(hideAlertsOnce, 3000);
+
         function escapeHtml(unsafe) {
             if (!unsafe) return '';
             return unsafe.replace(/[&<"'>]/g, function (m) {
