@@ -214,12 +214,15 @@
 									<div data-i18n="">Người dùng</div>
 								</a>
 							</li>
-							<li class="menu-item @(Context.Request.Path.StartsWithSegments("/Accounts/Admin/AdminPage") ? "active" : "")">
-								<a asp-page="/Accounts/Admin/AdminPage" class="menu-link">
-									<i class="menu-icon tf-icons bx bx-user"></i>
-									<div data-i18n="">Admin</div>
-								</a>
-							</li>
+                            @if (User?.Identity?.IsAuthenticated == true && User.IsInRole("SuperAdmin"))
+                            {
+                                <li class="menu-item @(Context.Request.Path.StartsWithSegments("/Accounts/Admin/AdminPage") ? "active" : "")" style="display">
+                                    <a asp-page="/Accounts/Admin/AdminPage" class="menu-link">
+                                        <i class="menu-icon tf-icons bx bx-user"></i>
+                                        <div data-i18n="">Admin</div>
+                                    </a>
+                                </li>
+                            }
                         </ul>
                     </li>
                     <li class="menu-item @(Context.Request.Path.StartsWithSegments("/Booking") ? "active" : "")">

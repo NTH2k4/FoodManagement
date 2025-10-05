@@ -6,9 +6,11 @@ using System;
 using System.ComponentModel.DataAnnotations;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using Microsoft.AspNetCore.Authorization;
 
 namespace FoodManagement.Pages.Accounts.Admin
 {
+    [Authorize(Roles = "SuperAdmin")]
     public class CreateAdminModel : PageModel, ICreateView
     {
         private readonly Func<ICreateView, IPresenter<AdminDto>> _presenterFactory;

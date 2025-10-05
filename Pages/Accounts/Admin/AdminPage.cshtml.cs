@@ -1,5 +1,6 @@
 ﻿using FoodManagement.Contracts;
 using FoodManagement.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using System;
@@ -8,6 +9,7 @@ using System.Threading.Tasks;
 
 namespace FoodManagement.Pages.Accounts.Admin
 {
+    [Authorize(Roles = "SuperAdmin")]
     public class AdminPageModel : PageModel, IListView<AdminDto>
     {
         private readonly Func<IListView<AdminDto>, IPresenter<AdminDto>> _presenterFactory;
